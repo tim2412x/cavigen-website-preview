@@ -14,6 +14,7 @@ let checked=0;
 for(const format of ['insert','film','detail'])for(const variant of ['micro','poro','senso']) {
  const model=createProduct(format,variant),meshes=[];
  model.traverse(o=>{if(o.isMesh)meshes.push(o);});
+ if(format==='detail'){const cells=meshes.find(m=>m.userData.aggregate);assert.ok(cells&&cells.userData.cellsPerAggregate>1000,'Aggregates must contain densely packed individual cells');assert.equal(cells.count,cells.userData.cellsPerAggregate*25);}
  const cups=meshes.find(m=>m.isInstancedMesh);
  assert.equal(cups.count,format==='detail'?25:484,'Dense fields and enlarged close-ups must differ.');
  assert.equal(cups.material.defines.PHYSICAL,'','Custom pore shading must retain the physical material shader.');
