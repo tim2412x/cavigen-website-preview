@@ -1,5 +1,5 @@
 'use strict';
-// These are material studies, not cell images or measurement visualisations.
+// Illustrative multicellular volumes, not microscopy or measured biological geometry.
 for (const canvas of document.querySelectorAll('.cell-field')) {
   const ctx = canvas.getContext('2d');
   if (!ctx) continue;
@@ -7,12 +7,12 @@ for (const canvas of document.querySelectorAll('.cell-field')) {
   const light = sceneType !== 'hero';
   let width=1, height=1, ratio=1, visible=false, raf=0, previous=0, time=0;
   let scene='neutral', blend=1, pointer={x:0,y:0}, eased={x:0,y:0};
-  const count=sceneType==='hero'?240:540, golden=Math.PI*(3-Math.sqrt(5));
+  const count=sceneType==='hero'?10000:1800, golden=Math.PI*(3-Math.sqrt(5));
   function formation(mode) {
     return Array.from({length:count},(_,i)=>{
-      const sphere=(index,n)=>{const y=1-2*(index+.5)/n; const r=Math.sqrt(1-y*y);const angle=index*golden;return {x:Math.cos(angle)*r,y,z:Math.sin(angle)*r};};
+      const sphere=(index,n)=>{const hash=k=>{const v=Math.sin(k*127.1+311.7)*43758.5453;return v-Math.floor(v);};const y=1-2*hash(index*3+1),r=Math.sqrt(1-y*y),angle=hash(index*3+2)*Math.PI*2,depth=Math.cbrt(hash(index*3+3));return {x:Math.cos(angle)*r*depth,y:y*depth,z:Math.sin(angle)*r*depth};};
       if (mode==='culture') {
-        const p=sphere(i%135,135), group=Math.floor(i/135);
+        const n=count/4,p=sphere(i%n,n), group=Math.floor(i/n);
         return {x:p.x*.47+(group%2? .57:-.57),y:p.y*.47+(group>1? .53:-.53),z:p.z*.47};
       }
       if (mode==='exchange') {
@@ -50,12 +50,12 @@ for (const canvas of document.querySelectorAll('.cell-field')) {
     }).sort((a,b)=>a.z-b.z);
     for(const p of dots){
       const focus=Math.max(0,Math.min(1,(p.z+1)/2));
-      const size=(1.3+focus*2.7)*(radius/230)*p.perspective;
-      const alpha=.16+focus*.74;
+      const size=(sceneType==='hero'?3.7:6.5)*(radius/230)*p.perspective;
+      const alpha=.82+focus*.18;
       const oxygen=scene==='oxygen' && p.i%9===0;
-      ctx.fillStyle=oxygen?`rgba(255,140,0,${alpha})`:light?`rgba(27,85,100,${alpha})`:`rgba(235,249,249,${alpha})`;
+      ctx.fillStyle=sceneType==='hero'?`hsl(${164+Math.sin(p.i*2.1)*9} 15% ${19+focus*54+Math.sin(p.i*3.1)*4}%)`:oxygen?`rgba(255,140,0,${alpha})`:light?`rgba(27,85,100,${alpha})`:`rgba(235,249,249,${alpha})`;
       ctx.beginPath();ctx.arc(p.x,p.y,Math.max(.7,size),0,Math.PI*2);ctx.fill();
-      if(p.z>.7 && p.i%4===0){ctx.strokeStyle=light?'rgba(37,104,117,.14)':'rgba(231,249,249,.19)';ctx.lineWidth=.7;ctx.beginPath();ctx.arc(p.x,p.y,size*2.8,0,Math.PI*2);ctx.stroke();}
+      if(p.z>.1 && p.i%3===0){ctx.strokeStyle=light?'rgba(37,104,117,.14)':'rgba(231,249,249,.19)';ctx.lineWidth=.7;ctx.beginPath();ctx.arc(p.x,p.y,size*.42,0,Math.PI*2);ctx.stroke();}
     }
     // Defocused foreground membranes create depth without obscuring the copy.
     if(sceneType==='hero'){
