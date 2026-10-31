@@ -85,15 +85,23 @@ export function createProduct(format='insert',variant='micro') {
     const sensors=addInstances(group,coating,sensor,centers,y+.002);sensors.userData.sensor=true;
   }
   if(detail) {
-    const aggregate=new THREE.SphereGeometry(.088,24,16);
-    const positions=aggregate.attributes.position;
-    for(let i=0;i<positions.count;i++){
-      const x=positions.getX(i),y=positions.getY(i),z=positions.getZ(i),k=1+.047*Math.sin(x*170)*Math.sin(z*143)*Math.cos(y*155);
-      positions.setXYZ(i,x*k,y*k,z*k);
+    // A packed volume of individual cells, not a single sphere. Reduced count for the overview.
+    const unit=new THREE.IcosahedronGeometry(1,1);
+    const cellMaterial=new THREE.MeshPhysicalMaterial({color:0x91b4a7,roughness:.48,metalness:0,clearcoat:.12});
+    const packed=[];
+    for(let z=-7;z<=7;z++)for(let y=-7;y<=7;y++)for(let x=-7;x<=7;x++){
+      const px=(x+(y%2)*.5)*.012,py=y*.0104,pz=z*.0104;
+      if(px*px+py*py+pz*pz<.078*.078)packed.push([px,py,pz]);
     }
-    aggregate.computeVertexNormals();
-    const cells=new THREE.MeshPhysicalMaterial({color:0x728f88,roughness:.44,metalness:0,clearcoat:.3,clearcoatRoughness:.4});
-    addInstances(group,aggregate,cells,centers,-.095);
+    const cells=new THREE.InstancedMesh(unit,cellMaterial,packed.length*centers.length);
+    cells.userData.aggregate=true;cells.userData.cellsPerAggregate=packed.length;
+    const matrix=new THREE.Matrix4(),q=new THREE.Quaternion(),color=new THREE.Color();let index=0;
+    centers.forEach(([cx,cz],c)=>packed.forEach(([x,y,z],i)=>{
+      const size=.0065*(.94+.12*Math.sin(i*12.3+c));
+      matrix.compose(new THREE.Vector3(cx+x,-.101+y,cz+z),q,new THREE.Vector3(size,size*.94,size));
+      cells.setMatrixAt(index,matrix);color.setHSL(.43+Math.sin(i*2.3)*.018,.16,.42+.12*(y/.078+1)/2+.035*Math.sin(i*7.1));cells.setColorAt(index++,color);
+    }));
+    cells.instanceMatrix.needsUpdate=true;group.add(cells);
     if(variant==='poro'){
       const particles=new THREE.InstancedMesh(new THREE.SphereGeometry(.012,8,6),new THREE.MeshBasicMaterial({color:0xdca45d}),16);particles.userData.exchange=true;group.add(particles);
     }
