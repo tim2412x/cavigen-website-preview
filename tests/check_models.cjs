@@ -24,9 +24,10 @@ for(const format of ['insert','film','detail'])for(const variant of ['micro','po
  assert.equal(model.children.filter(m=>m.userData.mountingTab).length,format==='insert'?3:0,'Round insert must have three mounting tabs.');
  if(format==='insert'){
   const wall=meshes[0];wall.geometry.computeBoundingBox();
-  assert.ok(wall.geometry.boundingBox.max.y-wall.geometry.boundingBox.min.y>.19);
+  assert.ok(wall.geometry.boundingBox.max.y-wall.geometry.boundingBox.min.y>2.1);
   const tabs=model.children.filter(m=>m.userData.mountingTab);
-  for(const tab of tabs){const stem=tab.children[0];stem.geometry.computeBoundingBox();assert.ok(stem.position.y+stem.geometry.boundingBox.min.y>0,'Mounting tabs must rise above the membrane, reversing the underside reference.');}
+  for(const tab of tabs){const stem=tab.children[0];stem.geometry.computeBoundingBox();assert.ok(stem.position.y+stem.geometry.boundingBox.min.y>2,
+ 'Mounts must join the upper wall');assert.ok(tab.children[1].position.z>1.24,'Flanges must project outward');assert.ok(stem.position.y+stem.geometry.boundingBox.min.y>0,'Mounting tabs must rise above the membrane, reversing the underside reference.');}
   for(const [x,z] of gridCenters('insert'))assert.ok(Math.hypot(x,z)+.048<1.16);
   assert.ok(wall.material.transparent&&wall.material.opacity<.4,'Walls should read as thin transparent polymer.');
  }
