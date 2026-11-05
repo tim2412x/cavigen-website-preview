@@ -3,7 +3,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 
 // Photo-derived proportions, not manufacturing dimensions or measured material properties.
-export const modelSpec = Object.freeze({ outerRadius:1.48, innerRadius:1.16, wallHeight:.20, pitch:.112, radius:.048, tabHeight:.86, poreFrequency:24, poreFraction:.19 });
+export const modelSpec = Object.freeze({ outerRadius:1.24, innerRadius:1.17, wallHeight:2.20, pitch:.112, radius:.048, tabHeight:.52, poreFrequency:24, poreFraction:.19 });
 
 function roundedPath(path,x,z,w,d,r) {
   path.moveTo(x+r,z);path.lineTo(x+w-r,z);path.quadraticCurveTo(x+w,z,x+w,z+r);
@@ -54,23 +54,32 @@ function addInstances(group,geometry,material,centers,y=0,scale=1) {
 export function createProduct(format='insert',variant='micro') {
   const group=new THREE.Group(),detail=format==='detail';
   group.userData={format,variant,cavityCount:gridCenters(format).length};
-  const clear=new THREE.MeshPhysicalMaterial({color:0xfff8e8,metalness:0,roughness:.075,transmission:.2,transparent:true,opacity:.24,depthWrite:false,thickness:.055,ior:1.47,clearcoat:.15,clearcoatRoughness:.08,envMapIntensity:1,side:THREE.DoubleSide});
+  const clear=new THREE.MeshPhysicalMaterial({color:0xf4f9fc,metalness:0,roughness:.075,transmission:.2,transparent:true,opacity:.28,depthWrite:false,thickness:.055,ior:1.47,clearcoat:.15,clearcoatRoughness:.08,envMapIntensity:1,side:THREE.DoubleSide});
   const film=new THREE.MeshPhysicalMaterial({color:0xf9fcfa,roughness:.10,metalness:0,transmission:1,thickness:.018,ior:1.46,clearcoat:.12,envMapIntensity:1,side:THREE.DoubleSide});
-  const rim=new THREE.MeshPhysicalMaterial({color:0xfff3d9,roughness:.075,metalness:0,transmission:.45,transparent:true,opacity:.78,thickness:.06,ior:1.49,clearcoat:.2,envMapIntensity:1.1});
+  const rim=new THREE.MeshPhysicalMaterial({color:0xe6eef2,roughness:.075,metalness:0,transmission:.45,transparent:true,opacity:.57,thickness:.06,ior:1.49,clearcoat:.2,envMapIntensity:1.1});
   if(format==='insert') {
-    const ring=circle(modelSpec.outerRadius);ring.holes.push(circle(modelSpec.innerRadius,true));
-    const body=new THREE.Mesh(extrude(ring,.20,.018),clear);body.position.y=-.06;group.add(body);
-    for(const [r,h] of [[1.47,.12],[1.37,-.075]]){
-      const shape=circle(r);shape.holes.push(circle(r-.055,true));
-      const lip=new THREE.Mesh(extrude(shape,.035,.012),rim);lip.position.y=h;group.add(lip);
+    // A tall open cylinder carries the film at its base; three top flanges hang outward.
+    const positions=[],segments=144;
+    for(let i=0;i<segments;i++){
+      const a=i/segments*Math.PI*2,b=(i+1)/segments*Math.PI*2;
+      const top=t=>2.12+.30*Math.pow((1+Math.cos(3*(t-.20)))/2,5);
+      const point=(t,y,r)=>[Math.sin(t)*r,y,Math.cos(t)*r];
+      for(const r of [1.24,1.19]){
+        const p=point(a,0,r),q=point(b,0,r),u=point(b,top(b),r),v=point(a,top(a),r);
+        for(const vertex of [p,q,u,p,u,v])positions.push(...vertex);
+      }
     }
-    // The supplied photograph is an underside view: mounting tabs rise above the film.
+    const wall=new THREE.BufferGeometry();wall.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));wall.computeVertexNormals();
+    const body=new THREE.Mesh(wall,clear);body.userData.insertBody=true;group.add(body);
+    for(const [r,h] of [[1.255,.025],[1.245,.095]]){
+      const shape=circle(r);shape.holes.push(circle(r-.055,true));
+      const lip=new THREE.Mesh(extrude(shape,.025,.006),rim);lip.position.y=h;group.add(lip);
+    }
     for(let i=0;i<3;i++){
       const support=new THREE.Group(),a=i*Math.PI*2/3+.20;
-      const tab=new THREE.Mesh(new RoundedBoxGeometry(.43,modelSpec.tabHeight,.065,4,.045),clear);
-      tab.position.set(0,.48,1.39);tab.rotation.x=.12;support.add(tab);
-      const hook=new THREE.Mesh(new RoundedBoxGeometry(.43,.07,.20,3,.025),rim);hook.position.set(0,.91,1.43);support.add(hook);
-      const rib=new THREE.Mesh(new RoundedBoxGeometry(.24,.09,.13,3,.025),rim);rib.position.set(0,.13,1.37);support.add(rib);
+      const tab=new THREE.Mesh(new RoundedBoxGeometry(.38,.52,.075,4,.025),clear);
+      tab.position.set(0,2.36,1.26);tab.rotation.x=.23;support.add(tab);
+      const hook=new THREE.Mesh(new RoundedBoxGeometry(.42,.065,.65,4,.05),rim);hook.position.set(0,2.62,1.52);support.add(hook);
       support.rotation.y=a;support.userData.mountingTab=true;group.add(support);
     }
   }
@@ -221,7 +230,7 @@ export function mount(root=document){
     function resize(){
       const b=canvas.getBoundingClientRect();if(!b.width||!b.height)return;
       renderer.setSize(b.width,b.height,false);camera.aspect=b.width/b.height;
-      camera.zoom=(story?1:format==='detail'?1.75:format==='film'?1.40:1.36)*Math.min(1,camera.aspect);camera.updateProjectionMatrix();
+      camera.zoom=(story?1:format==='detail'?1.75:format==='film'?1.40:1.05)*Math.min(1,camera.aspect);camera.updateProjectionMatrix();
     }
     function draw(){if(disposed||lost)return;
       if(story){
@@ -233,7 +242,7 @@ export function mount(root=document){
       }else{
         const view=element.dataset.view||(format==='film'?'low':variant==='senso'?'sensor':'orbit');
         const travel=Math.sin(time*.14)*.16+angle;
-        camera.position.set(view==='overhead'?1.8:view==='sensor'?2.8:view==='low'?5.3:4.6,view==='overhead'?8.5:view==='sensor'?3.1:view==='low'?3.3:6.3,view==='overhead'?4.0:view==='sensor'?7.0:6.2);camera.lookAt(0,format==='insert'?.23:-.10,0);
+        camera.position.set(view==='overhead'?1.8:view==='sensor'?2.8:view==='low'?5.3:4.6,view==='overhead'?8.5:view==='sensor'?3.1:view==='low'?3.3:6.3,view==='overhead'?4.0:view==='sensor'?7.0:6.2);camera.lookAt(0,format==='insert'?1.20:-.10,0);
         model.rotation.y=(view==='sensor'?-.55:view==='low'?.38:-.2)+travel;
         model.rotation.z=Math.sin(time*.11)*.024;
       }
