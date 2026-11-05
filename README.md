@@ -6,7 +6,7 @@ The preview includes a guided product finder, animated illustrations of CaviSphe
 
 ## Product animation update · November 2026
 
-The round insert has three upward mounting tabs, modelled from an underside reference. Cells form touching, compact aggregates. Films include an unstructured margin. The PoroSphere application uses a continuous scroll-driven macro view with many small wall pores and bidirectional molecule exchange. Pause motion provides a static cutaway; devices without WebGL retain product stills and readable explanatory content. Dimensions, pore sizes and cell counts are illustrative and require product-team review before production use.
+The insert has a tall cylindrical body, a film at its base, and three outward hanging flanges at the top, modelled from the supplied top and underside photographs. Cells form touching, compact aggregates. Films include an unstructured margin. The PoroSphere application uses a continuous scroll-driven macro view with many small wall pores and bidirectional molecule exchange. Pause motion provides a static cutaway; devices without WebGL retain product stills and readable explanatory content. Dimensions, pore sizes and cell counts are illustrative and require product-team review before production use.
 
 ## Preview with GitHub Pages
 
@@ -39,6 +39,7 @@ python3 tests/check_site.py
 node tests/check_finder.cjs
 node tests/check_inquiry.cjs
 node tests/check_models.cjs
+node tests/check_motion.cjs
 ```
 
 The enquiry form prepares an email draft. It does not send messages or store enquiry text. Finder answers remain in the current page's memory; only the motion preference may be stored locally.

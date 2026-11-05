@@ -7,24 +7,24 @@ for (const canvas of document.querySelectorAll('.cell-field')) {
   const light = sceneType !== 'hero';
   let width=1, height=1, ratio=1, visible=false, raf=0, previous=0, time=0;
   let scene='neutral', blend=1, pointer={x:0,y:0}, eased={x:0,y:0};
-  const packed=[];
-  for(let z=-14;z<=14;z++)for(let y=-14;y<=14;y++)for(let x=-14;x<=14;x++){
-    const px=(x+(y%2)*.5+.10*Math.sin(y*7+z*3))/14,py=(y*.866+.10*Math.sin(x*3+z*5))/14,pz=(z*.866+.10*Math.sin(x*7+y*3))/14;
-    if(px*px+py*py+pz*pz<1)packed.push({x:px,y:py,z:pz});
-  }
-  const count=packed.length, golden=Math.PI*(3-Math.sqrt(5));
+  const golden=Math.PI*(3-Math.sqrt(5)),count=sceneType==='hero'?1800:1800;
+  const packed=Array.from({length:count},(_,i)=>{
+    const y=1-2*(i+.5)/count,r=Math.sqrt(1-y*y),a=i*golden;
+    const depth=sceneType==='hero'?1:Math.cbrt(((i*7919)%count+.5)/count);
+    return {x:Math.cos(a)*r*depth,y:y*depth,z:Math.sin(a)*r*depth};
+  });
   const sprites=Array.from({length:24},(_,i)=>{
     const sprite=document.createElement('canvas');sprite.width=64;sprite.height=64;
-    const c=sprite.getContext('2d'),shade=c.createRadialGradient(22,18,2,31,31,31),l=25+i*1.65;
-    shade.addColorStop(0,`hsl(160 18% ${l+14}%)`);shade.addColorStop(.5,`hsl(163 19% ${l+5}%)`);shade.addColorStop(.86,`hsl(164 19% ${l-3}%)`);shade.addColorStop(1,`hsl(165 18% ${l-9}%)`);
+    const c=sprite.getContext('2d'),shade=c.createRadialGradient(22,18,2,31,31,31),l=39+i*1.85;
+    shade.addColorStop(0,`hsl(195 12% ${l+14}%)`);shade.addColorStop(.5,`hsl(195 12% ${l+5}%)`);shade.addColorStop(.86,`hsl(197 13% ${l-3}%)`);shade.addColorStop(1,`hsl(198 15% ${l-9}%)`);
     c.fillStyle=shade;c.beginPath();c.arc(32,32,31,0,Math.PI*2);c.fill();
-    c.fillStyle='rgba(24,66,57,.12)';c.beginPath();c.ellipse(30,33,9,8,.4,0,Math.PI*2);c.fill();return sprite;
+    c.fillStyle='rgba(65,94,110,.08)';c.beginPath();c.ellipse(30,33,9,8,.4,0,Math.PI*2);c.fill();return sprite;
   });
   function formation(mode) {
     return Array.from({length:count},(_,i)=>{
       const sphere=index=>packed[index%packed.length];
       if (mode==='culture') {
-        const n=count/4,p=sphere(i%n,n), group=Math.floor(i/n);
+        const n=Math.ceil(count/4),p=sphere(i%n), group=Math.floor(i/n);
         return {x:p.x*.47+(group%2? .57:-.57),y:p.y*.47+(group>1? .53:-.53),z:p.z*.47};
       }
       if (mode==='exchange') {
@@ -49,7 +49,7 @@ for (const canvas of document.querySelectorAll('.cell-field')) {
     let cx=sceneType==='hero'?(mobile?.57:.79):sceneType==='invitation'?(mobile?.5:.23):compact?.72:.51;
     let cy=sceneType==='hero'?(mobile?.20:.46):sceneType==='invitation'?(mobile?.22:.50):compact?.49:.41;
     const radius=sceneType==='hero'?Math.min(width*(mobile?.32:.18),height*.28):sceneType==='invitation'?Math.min(width*(mobile?.40:.23),height*.38):Math.min(width*.39,height*.31);
-    const rotation=.35+time*.075+eased.x*.13, tilt=-.16+eased.y*.10;
+    const rotation=.35+time*(sceneType==='hero'?.028:.06), tilt=-.16;
     const sin=Math.sin(rotation),cos=Math.cos(rotation),st=Math.sin(tilt),ct=Math.cos(tilt);
     cx*=width;cy*=height;
     const halo=ctx.createRadialGradient(cx-radius*.2,cy-radius*.2,radius*.04,cx,cy,radius*1.3);
@@ -57,20 +57,20 @@ for (const canvas of document.querySelectorAll('.cell-field')) {
     ctx.fillStyle=halo;ctx.fillRect(cx-radius*1.5,cy-radius*1.5,radius*3,radius*3);
     const dots=points.map((p,i)=>{
       const x=p.x*cos+p.z*sin,z=p.z*cos-p.x*sin,y=p.y*ct-z*st,depth=p.y*st+z*ct;
-      const perspective=3.8/(3.8-depth);
+      const perspective=sceneType==='hero'?1:3.8/(3.8-depth);
       return {x:cx+x*radius*perspective,y:cy+y*radius*perspective,z:depth,i,perspective,surface:Math.hypot(p.x,p.y,p.z)>.84};
     }).sort((a,b)=>a.z-b.z);
     if(sceneType==='hero'){
-      const core=ctx.createRadialGradient(cx-radius*.25,cy-radius*.3,0,cx,cy,radius*1.03);core.addColorStop(0,'#aac2b4');core.addColorStop(.7,'#739488');core.addColorStop(1,'#3a6359');ctx.fillStyle=core;ctx.beginPath();ctx.arc(cx,cy,radius*1.015,0,Math.PI*2);ctx.fill();
+      const core=ctx.createRadialGradient(cx-radius*.25,cy-radius*.3,0,cx,cy,radius*1.03);core.addColorStop(0,'#dce8ed');core.addColorStop(.7,'#a3bbc7');core.addColorStop(1,'#5e7b8d');ctx.fillStyle=core;ctx.beginPath();ctx.arc(cx,cy,radius*1.015,0,Math.PI*2);ctx.fill();
     }
     for(const p of dots){
       if(sceneType==='hero'&&(!p.surface||p.z<-.10))continue;
       const focus=Math.max(0,Math.min(1,(p.z+1)/2));
-      const size=radius*.049*p.perspective;
+      const size=(sceneType==='hero'?radius*.050:radius*.014)*p.perspective;
       const alpha=.82+focus*.18;
       const oxygen=scene==='oxygen' && p.i%9===0;
       ctx.fillStyle=sceneType==='hero'?`hsl(${164+Math.sin(p.i*2.1)*9} 15% ${20+focus*41+Math.sin(p.i*3.1)*2}%)`:oxygen?`rgba(255,140,0,${alpha})`:light?`rgba(27,85,100,${alpha})`:`rgba(235,249,249,${alpha})`;
-      if(sceneType==='hero'){const illumination=Math.max(0,Math.min(23,Math.round((focus-.35)*31-(p.x-cx)/radius*3-(p.y-cy)/radius*4)));ctx.drawImage(sprites[illumination],p.x-size,p.y-size,size*2,size*2);}
+      if(sceneType==='hero'){const illumination=Math.max(0,Math.min(23,Math.round((focus-.45)*28-(p.x-cx)/radius*4-(p.y-cy)/radius*5)));ctx.drawImage(sprites[illumination],p.x-size,p.y-size,size*2,size*2);}
       else{ctx.beginPath();ctx.arc(p.x,p.y,Math.max(.7,size),0,Math.PI*2);ctx.fill();}
       if(sceneType!=='hero' && p.z>.1 && p.i%3===0){ctx.strokeStyle=light?'rgba(37,104,117,.14)':'rgba(231,249,249,.19)';ctx.lineWidth=.7;ctx.beginPath();ctx.arc(p.x,p.y,size*.32,0,Math.PI*2);ctx.stroke();}
     }
