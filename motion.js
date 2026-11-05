@@ -7,10 +7,22 @@ for (const canvas of document.querySelectorAll('.cell-field')) {
   const light = sceneType !== 'hero';
   let width=1, height=1, ratio=1, visible=false, raf=0, previous=0, time=0;
   let scene='neutral', blend=1, pointer={x:0,y:0}, eased={x:0,y:0};
-  const count=sceneType==='hero'?10000:1800, golden=Math.PI*(3-Math.sqrt(5));
+  const packed=[];
+  for(let z=-14;z<=14;z++)for(let y=-14;y<=14;y++)for(let x=-14;x<=14;x++){
+    const px=(x+(y%2)*.5+.10*Math.sin(y*7+z*3))/14,py=(y*.866+.10*Math.sin(x*3+z*5))/14,pz=(z*.866+.10*Math.sin(x*7+y*3))/14;
+    if(px*px+py*py+pz*pz<1)packed.push({x:px,y:py,z:pz});
+  }
+  const count=packed.length, golden=Math.PI*(3-Math.sqrt(5));
+  const sprites=Array.from({length:24},(_,i)=>{
+    const sprite=document.createElement('canvas');sprite.width=64;sprite.height=64;
+    const c=sprite.getContext('2d'),shade=c.createRadialGradient(22,18,2,31,31,31),l=25+i*1.65;
+    shade.addColorStop(0,`hsl(160 18% ${l+14}%)`);shade.addColorStop(.5,`hsl(163 19% ${l+5}%)`);shade.addColorStop(.86,`hsl(164 19% ${l-3}%)`);shade.addColorStop(1,`hsl(165 18% ${l-9}%)`);
+    c.fillStyle=shade;c.beginPath();c.arc(32,32,31,0,Math.PI*2);c.fill();
+    c.fillStyle='rgba(24,66,57,.12)';c.beginPath();c.ellipse(30,33,9,8,.4,0,Math.PI*2);c.fill();return sprite;
+  });
   function formation(mode) {
     return Array.from({length:count},(_,i)=>{
-      const sphere=(index,n)=>{const hash=k=>{const v=Math.sin(k*127.1+311.7)*43758.5453;return v-Math.floor(v);};const y=1-2*hash(index*3+1),r=Math.sqrt(1-y*y),angle=hash(index*3+2)*Math.PI*2,depth=Math.cbrt(hash(index*3+3));return {x:Math.cos(angle)*r*depth,y:y*depth,z:Math.sin(angle)*r*depth};};
+      const sphere=index=>packed[index%packed.length];
       if (mode==='culture') {
         const n=count/4,p=sphere(i%n,n), group=Math.floor(i/n);
         return {x:p.x*.47+(group%2? .57:-.57),y:p.y*.47+(group>1? .53:-.53),z:p.z*.47};
@@ -46,16 +58,21 @@ for (const canvas of document.querySelectorAll('.cell-field')) {
     const dots=points.map((p,i)=>{
       const x=p.x*cos+p.z*sin,z=p.z*cos-p.x*sin,y=p.y*ct-z*st,depth=p.y*st+z*ct;
       const perspective=3.8/(3.8-depth);
-      return {x:cx+x*radius*perspective,y:cy+y*radius*perspective,z:depth,i,perspective};
+      return {x:cx+x*radius*perspective,y:cy+y*radius*perspective,z:depth,i,perspective,surface:Math.hypot(p.x,p.y,p.z)>.84};
     }).sort((a,b)=>a.z-b.z);
+    if(sceneType==='hero'){
+      const core=ctx.createRadialGradient(cx-radius*.25,cy-radius*.3,0,cx,cy,radius*1.03);core.addColorStop(0,'#aac2b4');core.addColorStop(.7,'#739488');core.addColorStop(1,'#3a6359');ctx.fillStyle=core;ctx.beginPath();ctx.arc(cx,cy,radius*1.015,0,Math.PI*2);ctx.fill();
+    }
     for(const p of dots){
+      if(sceneType==='hero'&&(!p.surface||p.z<-.10))continue;
       const focus=Math.max(0,Math.min(1,(p.z+1)/2));
-      const size=(sceneType==='hero'?3.7:6.5)*(radius/230)*p.perspective;
+      const size=radius*.049*p.perspective;
       const alpha=.82+focus*.18;
       const oxygen=scene==='oxygen' && p.i%9===0;
-      ctx.fillStyle=sceneType==='hero'?`hsl(${164+Math.sin(p.i*2.1)*9} 15% ${19+focus*54+Math.sin(p.i*3.1)*4}%)`:oxygen?`rgba(255,140,0,${alpha})`:light?`rgba(27,85,100,${alpha})`:`rgba(235,249,249,${alpha})`;
-      ctx.beginPath();ctx.arc(p.x,p.y,Math.max(.7,size),0,Math.PI*2);ctx.fill();
-      if(p.z>.1 && p.i%3===0){ctx.strokeStyle=light?'rgba(37,104,117,.14)':'rgba(231,249,249,.19)';ctx.lineWidth=.7;ctx.beginPath();ctx.arc(p.x,p.y,size*.42,0,Math.PI*2);ctx.stroke();}
+      ctx.fillStyle=sceneType==='hero'?`hsl(${164+Math.sin(p.i*2.1)*9} 15% ${20+focus*41+Math.sin(p.i*3.1)*2}%)`:oxygen?`rgba(255,140,0,${alpha})`:light?`rgba(27,85,100,${alpha})`:`rgba(235,249,249,${alpha})`;
+      if(sceneType==='hero'){const illumination=Math.max(0,Math.min(23,Math.round((focus-.35)*31-(p.x-cx)/radius*3-(p.y-cy)/radius*4)));ctx.drawImage(sprites[illumination],p.x-size,p.y-size,size*2,size*2);}
+      else{ctx.beginPath();ctx.arc(p.x,p.y,Math.max(.7,size),0,Math.PI*2);ctx.fill();}
+      if(sceneType!=='hero' && p.z>.1 && p.i%3===0){ctx.strokeStyle=light?'rgba(37,104,117,.14)':'rgba(231,249,249,.19)';ctx.lineWidth=.7;ctx.beginPath();ctx.arc(p.x,p.y,size*.32,0,Math.PI*2);ctx.stroke();}
     }
     // Defocused foreground membranes create depth without obscuring the copy.
     if(sceneType==='hero'){

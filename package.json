@@ -1,7 +1,7 @@
 {
   "name": "cavigen-website-concept",
   "private": true,
-  "version": "4.0.0",
+  "version": "6.0.0",
   "scripts": {
     "build:models": "esbuild src/product-model.js --bundle --format=iife --global-name=CaviModels --minify --target=es2020 --outfile=product-model.js",
     "test:models": "node tests/check_models.cjs"

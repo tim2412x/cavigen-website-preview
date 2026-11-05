@@ -4,6 +4,10 @@ Design preview of a proposed CAVIGEN website. This is a concept presentation, no
 
 The preview includes a guided product finder, animated illustrations of CaviSphere inserts and films, and a brand application study. Product geometry is approximated from photographs; the illustrations are not CAD models, microscopy or experimental results.
 
+## Product animation update · November 2026
+
+The round insert has three upward mounting tabs, modelled from an underside reference. Cells form touching, compact aggregates. Films include an unstructured margin. The PoroSphere application uses a continuous scroll-driven macro view with many small wall pores and bidirectional molecule exchange. Pause motion provides a static cutaway; devices without WebGL retain product stills and readable explanatory content. Dimensions, pore sizes and cell counts are illustrative and require product-team review before production use.
+
 ## Preview with GitHub Pages
 
 In the repository settings, open **Pages**, choose **Deploy from a branch**, then **main** and **/ (root)**. Save. The entry point is `index.html`; `.nojekyll` keeps the static files unchanged. No installation or build is needed for deployment.
