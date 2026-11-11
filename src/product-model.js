@@ -188,13 +188,25 @@ export function exchangePoint(i,time,radius=.048,frequency=24) {
   const phase=(time*.18+i*.127)%1,t=i%2?1-phase:phase,scale=1.20-.40*t;
   return [u*radius*scale,-Math.sqrt(1-u*u-v*v)*radius*scale,v*radius*scale];
 }
+export function mediumPoint(lane,phase) {
+  const x=phase*.38-.19,z=-(24.5+lane%10)/48*.048,u=32.5/48*.048;
+  const centre=Math.round(x/.112)*.112,local=x-centre;
+  const bend=Math.abs(local)<u?.002*Math.sin(Math.PI*(local+u)/(2*u))**2:0;
+  const y=-Math.sqrt(.048**2-u*u-z*z)+bend;
+  return [x,y,z];
+}
+export function mediumWidth(x,lane) {
+  const u=32.5/48*.048;
+  const gap=Math.min(...[-.112,0,.112].flatMap(c=>[Math.abs(x-c-u),Math.abs(x-c+u)]));
+  return .000075+.000825*smooth(gap/.008);
+}
 export function homePose(progress) {
-  const p=THREE.MathUtils.clamp(progress,0,1),zoom=smooth(p/.40),porosity=smooth((p-.54)/.12),oxygen=smooth((p-.84)/.12);
-  return {distance:Math.exp(THREE.MathUtils.lerp(Math.log(2.2),Math.log(.235),zoom))+.025*oxygen,
+  const p=THREE.MathUtils.clamp(progress,0,1),zoom=smooth(p/.40),porosity=smooth((p-.46)/.09),oxygen=smooth((p-.84)/.12);
+  return {distance:Math.exp(THREE.MathUtils.lerp(Math.log(2.2),Math.log(.235),zoom))+.16*porosity*(1-oxygen)+.025*oxygen,
     elevation:THREE.MathUtils.lerp(.92,.25,zoom),azimuth:THREE.MathUtils.lerp(.62,-.12,zoom)+.12*oxygen,
     cut:THREE.MathUtils.lerp(2,.20,smooth((p-.24)/.13)),context:1-smooth((p-.24)/.13),
     coating:smooth((p-.22)/.12),porosity,flow:porosity*(1-oxygen),oxygen,
-    chapter:p<.26?0:p<.54?1:p<.84?2:3};
+    interaction:smooth((p-.60)/.09)*(1-oxygen),chapter:p<.26?0:p<.46?1:p<.84?2:3};
 }
 export function createStoryProduct(home=false) {
   const model=new THREE.Group(),context=createProduct('film','poro');context.userData.context=true;model.add(context);
@@ -224,11 +236,31 @@ export function createStoryProduct(home=false) {
     context.traverse(o=>{if(o.userData.perfusion||o.isLine)o.visible=false;if(o.material?.userData.pores){o.material.userData.frequency.value=48;o.material.userData.poreSize.value=.11;o.material.userData.pores.value=0;}});
     particles.geometry.dispose();particles.geometry=new THREE.SphereGeometry(.000085,8,6);particles.userData.finePores=true;
     const fluid=new THREE.Group();fluid.userData.heroFlow=true;model.add(fluid);
-    for(const z of [-.060,-.048,.052,.064]){
-      const curve=new THREE.CatmullRomCurve3([new THREE.Vector3(-.16,-.02,z),new THREE.Vector3(-.055,-.028,z),new THREE.Vector3(.04,-.032,z),new THREE.Vector3(.16,-.02,z)]);
-      const path=new THREE.Line(new THREE.BufferGeometry().setFromPoints(curve.getPoints(60)),new THREE.LineBasicMaterial({color:0x7fe2ec,transparent:true,opacity:.28}));fluid.add(path);
+    // Neighbouring cultures stay subordinate to the central cavity.
+    const neighbours=new THREE.Group();neighbours.userData.heroNeighbours=true;model.add(neighbours);
+    const ghost=material.clone();ghost.onBeforeCompile=material.onBeforeCompile;ghost.defines={...material.defines};ghost.userData=material.userData;ghost.depthWrite=false;
+    neighbours.add(addInstances(new THREE.Group(),cavityGeometry(.048,.112),ghost,[[-.112,0],[.112,0]]));
+    const neighbourCells=createCellAggregate([[-.112,-.101*ratio,0],[.112,-.101*ratio,0]],ratio,16);
+    neighbourCells.material.transparent=true;neighbourCells.material.depthWrite=false;neighbours.add(neighbourCells);
+    for(let lane=0;lane<10;lane++){
+      const points=Array.from({length:321},(_,i)=>new THREE.Vector3(...mediumPoint(lane,i/320)));
+      const curve=new THREE.CatmullRomCurve3(points),geometry=new THREE.TubeGeometry(curve,320,.0009,6,false);
+      const vertices=geometry.attributes.position;
+      for(let i=0;i<=320;i++){
+        const centre=curve.getPointAt(i/320),width=mediumWidth(centre.x,lane)/.0009;
+        for(let j=0;j<=6;j++){const n=i*7+j;vertices.setXYZ(n,centre.x+(vertices.getX(n)-centre.x)*width,centre.y+(vertices.getY(n)-centre.y)*width,centre.z+(vertices.getZ(n)-centre.z)*width);}
+      }
+      geometry.computeVertexNormals();
+      const water=new THREE.MeshBasicMaterial({color:0x75dfea,transparent:true,opacity:.20,depthWrite:false,side:THREE.DoubleSide});
+      water.userData.flowTime={value:0};water.onBeforeCompile=shader=>{
+        shader.uniforms.flowTime=water.userData.flowTime;
+        shader.fragmentShader='uniform float flowTime;\n'+shader.fragmentShader;
+        shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>','#include <color_fragment>\ndiffuseColor.a *= .25 + .75 * pow(.5 + .5 * cos(vUv.x * 100.0 - flowTime * 3.2), 6.0);');
+      };water.defines={USE_UV:''};fluid.add(new THREE.Mesh(geometry,water));
     }
-    const medium=new THREE.InstancedMesh(new THREE.SphereGeometry(.00055,8,6),new THREE.MeshBasicMaterial({color:0x8eeaf3}),84);medium.userData.heroMedium=true;fluid.add(medium);
+    const medium=new THREE.InstancedMesh(new THREE.SphereGeometry(.000075,8,6),new THREE.MeshBasicMaterial({color:0xffffff}),180);
+    const nutrientColor=new THREE.Color();for(let i=0;i<medium.count;i++)medium.setColorAt(i,nutrientColor.set([0xffbb69,0xa5edf3,0xa6cf9a][i%3]));
+    medium.userData.heroMedium=true;fluid.add(medium);
     const rim=new THREE.Mesh(new THREE.TorusGeometry(.048,.0004,8,96,Math.PI*1.14),new THREE.MeshBasicMaterial({color:0x8eeaf3,transparent:true,opacity:0}));rim.rotation.x=Math.PI/2;rim.rotation.z=.22;rim.position.y=.0003;rim.userData.heroRim=true;model.add(rim);
     const pixels=new Uint8Array(64*64*4);
     for(let y=0;y<64;y++)for(let x=0;x<64;x++){const d=Math.hypot(x-31.5,y-31.5)/32,i=(y*64+x)*4;pixels[i]=pixels[i+1]=pixels[i+2]=255;pixels[i+3]=Math.round(Math.pow(Math.max(0,1-d),2)*170);}
@@ -300,20 +332,24 @@ export function mount(root=document){
           cup.material.emissive.setRGB(.02+pose.oxygen*.70,.34-pose.oxygen*.13,.42-pose.oxygen*.38);cup.material.emissiveIntensity=pose.coating*1.5;
           cup.material.color.setRGB(.66-pose.coating*.28+pose.oxygen*.28,.78-pose.coating*.12,.83-pose.coating*.08-pose.oxygen*.22);
           model.children.find(o=>o.userData.exchange).visible=pose.flow>.01;
-          model.children.find(o=>o.userData.heroFlow).visible=pose.flow>.01;
+          const fluid=model.children.find(o=>o.userData.heroFlow);fluid.visible=pose.flow>.01;
+          fluid.traverse(o=>{if(o.material?.userData.flowTime){o.material.userData.flowTime.value=time;o.material.opacity=.24*pose.flow;}});
+          const neighbours=model.children.find(o=>o.userData.heroNeighbours);neighbours.visible=pose.flow>.01;
+          neighbours.traverse(o=>{if(o.material)o.material.opacity=(o.userData.aggregate?.25:.16)*pose.flow;});
           const rim=model.children.find(o=>o.userData.heroRim);rim.material.opacity=pose.coating*.65;rim.material.color.set(pose.oxygen>.5?0xffb357:0x8eeaf3);
           const halo=model.children.find(o=>o.userData.heroHalo);halo.material.opacity=pose.coating*.5;halo.material.color.set(pose.oxygen>.5?0xffa331:0x38d3ed);
-          const leader=home.querySelector('.coating-leader'),label=home.querySelector('.annotation-coating');
-          if(leader&&label){
+          for(const [kind,point] of [['coating',[.039,-.020,-.0196]],['flow',[.0325,-.02875,-.0205]],['interaction',[-.056,-.029,-.022]]]){
+            const leader=home.querySelector(`.${kind}-leader`),label=home.querySelector(`.annotation-${kind}`);
+            if(!leader||!label)continue;
             const bounds=stage.getBoundingClientRect(),visual=element.getBoundingClientRect(),text=label.getBoundingClientRect();
-            const anchor=new THREE.Vector3(.039,-.020,-.0196).project(camera);
+            const anchor=new THREE.Vector3(...point).project(camera);
             const x=visual.left-bounds.left+(anchor.x+1)*visual.width/2,y=visual.top-bounds.top+(1-anchor.y)*visual.height/2;
-            const sx=text.right-bounds.left-18,sy=text.top-bounds.top-10;
+            const sx=text.left-bounds.left+text.width*.65,sy=(kind==='flow'?text.bottom:text.top)-bounds.top;
             leader.setAttribute('viewBox',`0 0 ${bounds.width} ${bounds.height}`);
-            leader.querySelector('path').setAttribute('d',`M ${sx} ${sy} L ${sx} ${sy-22} L ${x} ${y}`);
+            leader.querySelector('path').setAttribute('d',`M ${sx} ${sy} L ${sx} ${sy+(kind==='flow'?18:-18)} L ${x} ${y}`);
             const dot=leader.querySelector('circle');dot.setAttribute('cx',x);dot.setAttribute('cy',y);
           }
-          home.style.setProperty('--coating',pose.coating*(1-pose.porosity));home.style.setProperty('--exchange',pose.flow);home.style.setProperty('--oxygen',pose.oxygen);
+          home.style.setProperty('--coating',pose.coating*(1-pose.porosity));home.style.setProperty('--exchange',pose.flow);home.style.setProperty('--interaction',pose.interaction);home.style.setProperty('--oxygen',pose.oxygen);
         }
       }else if(aggregate){
         camera.position.set(0,.15,3.55);camera.lookAt(0,0,0);model.rotation.set(.18,.4+time*.035,-.12);
@@ -325,7 +361,11 @@ export function mount(root=document){
         model.rotation.z=Math.sin(time*.11)*.024;
       }
       model.traverse(o=>{
-        if(o.userData.heroMedium){const m=new THREE.Matrix4(),zs=[-.060,-.048,.052,.064];for(let i=0;i<o.count;i++){const x=((i*.019+time*.022)%.32)-.16;m.makeTranslation(x,-.02-.012*Math.exp(-Math.pow(x/.075,2)),zs[i%4]);o.setMatrixAt(i,m);}o.instanceMatrix.needsUpdate=true;}
+        if(o.userData.heroMedium){const m=new THREE.Matrix4();for(let i=0;i<o.count;i++){
+          const phase=(i*.137+time*.075)%1,p=mediumPoint(i%10,phase);
+          // Only the optical marker enlarges away from the membrane; it narrows at every pore.
+          const scale=1+7*smooth((mediumWidth(p[0],i%10)-.000075)/.000825);m.makeScale(scale,scale,scale);m.setPosition(...p);o.setMatrixAt(i,m);
+        }o.instanceMatrix.needsUpdate=true;}
         if(o.userData.chipFlow){const m=new THREE.Matrix4();for(let i=0;i<o.count;i++){m.makeTranslation(((i*.27+time*.32)%3.2)-1.6,-.28,(i%3-1)*.6);o.setMatrixAt(i,m);}o.instanceMatrix.needsUpdate=true;}
         if(o.userData.opticalSignal){const m=new THREE.Matrix4();for(let i=0;i<o.count;i++){const p=(time*.5+i/12)%1;m.makeTranslation(i%2?.09:-.09,-.68+(i%2?1-p:p)*.49,0);o.setMatrixAt(i,m);}o.instanceMatrix.needsUpdate=true;}
         if(o.userData.perfusion){const m=new THREE.Matrix4();for(let i=0;i<o.count;i++){const x=((i*.19+time*.075+1.5)%3)-1.5;m.makeTranslation(x,-.09,(i%3-1)*.32+Math.sin(x*2)*.04);o.setMatrixAt(i,m);}o.instanceMatrix.needsUpdate=true;}
