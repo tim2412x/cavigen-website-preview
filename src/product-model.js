@@ -303,6 +303,16 @@ export function mount(root=document){
           model.children.find(o=>o.userData.heroFlow).visible=pose.flow>.01;
           const rim=model.children.find(o=>o.userData.heroRim);rim.material.opacity=pose.coating*.65;rim.material.color.set(pose.oxygen>.5?0xffb357:0x8eeaf3);
           const halo=model.children.find(o=>o.userData.heroHalo);halo.material.opacity=pose.coating*.5;halo.material.color.set(pose.oxygen>.5?0xffa331:0x38d3ed);
+          const leader=home.querySelector('.coating-leader'),label=home.querySelector('.annotation-coating');
+          if(leader&&label){
+            const bounds=stage.getBoundingClientRect(),visual=element.getBoundingClientRect(),text=label.getBoundingClientRect();
+            const anchor=new THREE.Vector3(.039,-.020,-.0196).project(camera);
+            const x=visual.left-bounds.left+(anchor.x+1)*visual.width/2,y=visual.top-bounds.top+(1-anchor.y)*visual.height/2;
+            const sx=text.right-bounds.left-18,sy=text.top-bounds.top-10;
+            leader.setAttribute('viewBox',`0 0 ${bounds.width} ${bounds.height}`);
+            leader.querySelector('path').setAttribute('d',`M ${sx} ${sy} L ${sx} ${sy-22} L ${x} ${y}`);
+            const dot=leader.querySelector('circle');dot.setAttribute('cx',x);dot.setAttribute('cy',y);
+          }
           home.style.setProperty('--coating',pose.coating*(1-pose.porosity));home.style.setProperty('--exchange',pose.flow);home.style.setProperty('--oxygen',pose.oxygen);
         }
       }else if(aggregate){
@@ -334,7 +344,7 @@ export function mount(root=document){
       progress=home&&paused()?manualProgress:THREE.MathUtils.clamp((top-bounds.top)/Math.max(1,bounds.height-stage.offsetHeight),0,1);
       story.style.setProperty('--story-progress',progress);
       const active=home?homePose(progress).chapter:paused()?2:progress<.30?0:progress<.68?1:2;
-      if(home){home.dataset.chapter=active;home.querySelector('[data-journey-product]').textContent=['MicroSphere','MicroSphere','PoroSphere','SensoSphere'][active];}
+      if(home){home.dataset.chapter=active;const label=home.querySelector('[data-journey-product]'),product=['MicroSphere','MicroSphere','PoroSphere','SensoSphere'][active];if(label.textContent!==product)label.textContent=product;}
       steps.forEach((step,i)=>{step.classList.toggle('is-active',i===active);step.setAttribute('aria-hidden',i!==active);step.inert=i!==active;});
       story.querySelectorAll('[data-story-jump]').forEach((button,i)=>button.setAttribute('aria-pressed',i===active));
       if(visible)draw();
