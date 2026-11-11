@@ -5,7 +5,7 @@ const vm=require('node:vm');
 const root=path.join(__dirname,'..');
 const context=vm.createContext({});
 vm.runInContext(fs.readFileSync(path.join(root,'product-model.js'),'utf8'),context);
-const {createProduct,cavityGeometry,gridCenters,packedCells,exchangePoint,storyPose}=context.CaviModels;
+const {createProduct,cavityGeometry,gridCenters,packedCells,cellRadius,createCellAggregate,createApplication,exchangePoint,storyPose}=context.CaviModels;
 const cup=cavityGeometry(.048,.112);
 cup.computeBoundingBox();
 assert.ok(cup.boundingBox.min.y<-.047,'Microcavities must be concave.');
@@ -14,7 +14,7 @@ let checked=0;
 for(const format of ['insert','film','detail'])for(const variant of ['micro','poro','senso']) {
  const model=createProduct(format,variant),meshes=[];
  model.traverse(o=>{if(o.isMesh)meshes.push(o);});
- if(format==='detail'){const cells=meshes.find(m=>m.userData.aggregate);assert.ok(cells&&cells.userData.cellsPerAggregate>1000,'Aggregates must contain densely packed individual cells');assert.equal(cells.count,cells.userData.cellsPerAggregate*25);}
+ if(format==='detail'){const cells=meshes.find(m=>m.userData.aggregate);assert.ok(cells&&cells.userData.cellsPerAggregate<=100,'Aggregates must use at most 100 individual cells');assert.equal(cells.count,cells.userData.cellsPerAggregate*25);}
  const cups=meshes.find(m=>m.userData.cavities);
  assert.equal(cups.count,gridCenters(format).length,'Dense fields and enlarged close-ups must differ.');
  assert.equal(cups.material.defines.PHYSICAL,'','Custom pore shading must retain the physical material shader.');
@@ -70,7 +70,7 @@ console.log('PASS: WebGL-unavailable fallback follows finder choices, all nine s
 const cells=packedCells();
 for(const [x,y,z] of cells){
  let contacts=0;
- for(const [a,b,c] of cells){const d=Math.hypot(x-a,y-b,z-c);if(d>0&&d<.0173)contacts++;}
+ for(const [a,b,c] of cells){const d=Math.hypot(x-a,y-b,z-c);if(d>0&&d<cellRadius*2*.86)contacts++;}
  assert.ok(contacts>=3,'Every cell must have multiple touching neighbours.');
 }
 // Exchange paths intersect the actual repeated pore lattice on the hemisphere.
@@ -79,7 +79,7 @@ for(let i=0;i<80;i++){
  assert.ok(Math.abs(Math.hypot(...p)-.048)<1e-8);
  for(const a of [p[0],p[2]])assert.ok(Math.abs(((a/.048*24)%1+1)%1-.5)<1e-8);
  assert.ok(.00032<.048*.19/24,'Illustrated molecules fit through a pore.');
- assert.ok(.009*.048/.188>.048*.19/24,'Individual cell radius exceeds pore radius.');
+ assert.ok(cellRadius*.048/.188>.048*.19/24,'Individual cell radius exceeds pore radius.');
 }
 let previous=storyPose(0).distance;
 for(let t=.001;t<=1;t+=.001){const p=storyPose(t);assert.ok(p.distance<=previous+1e-8);assert.ok(previous-p.distance<.08,'Camera must move continuously');previous=p.distance;}
@@ -92,3 +92,13 @@ assert.ok(story.children.find(o=>o.userData.cavities),'Macro cavity remains sepa
 assert.equal(story.children.filter(o=>o.userData.aggregate).length,1,'One central aggregate remains in the cutaway');
 assert.ok(fs.statSync(path.join(root,'assets/cavi-poro-exchange.jpg')).size>1000);
 console.log('PASS: macro material clones, central tissue and static exchange fallback.');
+
+const aggregate=createCellAggregate();
+assert.equal(aggregate.count,79);assert.equal(aggregate.material.opacity,1);assert.equal(aggregate.material.transmission,0);
+assert.ok(aggregate.instanceMatrix.array.every(Number.isFinite));
+const chip=createApplication('poro'),sensor=createApplication('senso');
+assert.equal(chip.userData.application,'organ-on-chip');assert.equal(sensor.userData.application,'oxygen-readout');
+assert.ok(chip.children.some(o=>o.userData.chipFlow));assert.ok(sensor.children.some(o=>o.userData.opticalSignal));
+const home=fs.readFileSync(path.join(root,'index.html'),'utf8');
+assert.match(home,/data-cavi-model="poro" data-format="application"/);assert.match(home,/data-cavi-model="senso" data-format="application"/);
+console.log('PASS: shared 79-cell opaque cluster and distinct chip/optical application scenes.');
