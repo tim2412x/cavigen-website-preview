@@ -25,3 +25,24 @@ for(let i=0;i<80;i++){
 assert.ok(.000085<.048*.11/48,'Molecules must fit through the smaller hero pores.');
 assert.ok(hero.children.some(o=>o.userData.heroFlow));assert.ok(hero.children.some(o=>o.userData.heroHalo));
 console.log('PASS: hero chapter order, continuous zoom, coating before pores, small-pore crossings and oxygen finale.');
+const {mediumPoint,mediumWidth}=sandbox.CaviModels;
+assert.ok(homePose(.5).porosity>0,'Pores should open earlier in the PoroSphere chapter.');
+assert.equal(homePose(.55).porosity,1);assert.equal(homePose(.5).chapter,2);
+assert.equal(homePose(.72).interaction,1);assert.equal(homePose(1).interaction,0);
+for(let lane=0;lane<10;lane++)for(const centre of [-.112,0,.112])for(const side of [-1,1]){
+ const x=centre+side*32.5/48*.048,p=mediumPoint(lane,(x+.19)/.38);
+ assert.ok(Math.abs(Math.hypot(p[0]-centre,p[1],p[2])-.048)<1e-9,'Medium must enter and leave each cavity through its wall.');
+ for(const v of [(p[0]-centre)/.048,p[2]/.048])assert.ok(Math.abs(((v*48)%1+1)%1-.5)<1e-9,'Flow must meet a real pore.');
+ assert.ok(mediumWidth(x,lane)<.048*.11/48,'Stream must narrow at the fine pores.');
+}
+assert.ok(hero.children.some(o=>o.userData.heroNeighbours));
+console.log('PASS: earlier porosity, three connected cavities, inward/outward flow through actual fine pores and interaction phase.');
+
+for(let lane=0;lane<10;lane++)for(let t=0;t<=1;t+=.01){
+ const p=mediumPoint(lane,t);
+ for(const c of points){
+  const ratio=.048/.188,centre=[c[0]*ratio,c[1]*ratio-.101*ratio,c[2]*ratio];
+  assert.ok(Math.hypot(...p.map((v,i)=>v-centre[i]))>.0185*ratio*1.1,'Nutrients must flow around retained cells.');
+ }
+}
+console.log('PASS: nutrient paths clear the retained cell aggregate.');
