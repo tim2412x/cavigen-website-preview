@@ -6,9 +6,11 @@ The preview includes a guided product finder, animated illustrations of CaviSphe
 
 ## Product animation update · 11 November 2026
 
-All illustrative cell aggregates use the same compact, opaque 79-cell geometry, with subtle irregularity and stable rotation. MicroSphere shows culture in cavities; PoroSphere shows a schematic Organ-on-Chip with medium flow; SensoSphere shows optical excitation and fluorescence readout. The homepage and platform comparison now distinguish these application contexts. Product stills and a transparent aggregate fallback support devices without WebGL.
+The homepage opens with one continuous scroll journey: MicroSphere cavity field → non-adherent coating → PoroSphere fine pores and medium/nutrient exchange → SensoSphere oxygen-sensing invitation. MicroSphere remains labelled through the first two chapters. Glow is a visual explanation of a coating, not a statement of visible physical emission. The new hero pores have more than three times smaller illustrative radii than the earlier macro view.
 
-The insert model is intentionally unchanged pending supplied production assets. The brand study documents the future material, lighting and camera direction; these are design targets, not a claim of finished cinematic animation. Chip layout, cell count, pore sizes and optical colours are illustrative, not measured data or a particular partner device. Pause motion retains an explanatory static view.
+Normal page scrolling controls the camera; chapter buttons allow direct navigation. With motion paused, the same buttons switch explanatory still views. Without WebGL, all chapters remain readable with matching product stills. The SensoSphere invitation currently links to the existing oxygen application section; a separate SensoSphere page is deferred.
+
+All cell aggregates retain the shared compact, opaque 79-cell geometry. The insert is unchanged pending supplied production assets. Cell counts, pore dimensions, chip layouts and optical colours are schematic, not measured data. The brand page documents the updated motion direction.
 
 ## Preview with GitHub Pages
 
