@@ -88,12 +88,12 @@ export function createProduct(format='insert',variant='micro') {
   const centers=gridCenters(format),pitch=detail?.43:modelSpec.pitch,radius=detail?.188:modelSpec.radius,y=0;
   const cupMaterial=film.clone();
   if(variant==='poro') {
-    const cut={value:2};cupMaterial.userData.cut=cut;
+    const cut={value:2},pores={value:1},frequency={value:24},poreSize={value:.19};Object.assign(cupMaterial.userData,{cut,pores,frequency,poreSize});
     cupMaterial.onBeforeCompile=shader=>{
-      shader.uniforms.caviCut=cut;
-      shader.fragmentShader='uniform float caviCut;\n'+shader.fragmentShader;
+      Object.assign(shader.uniforms,{caviCut:cut,caviPores:pores,caviFrequency:frequency,caviPoreSize:poreSize});
+      shader.fragmentShader='uniform float caviCut; uniform float caviPores; uniform float caviFrequency; uniform float caviPoreSize;\n'+shader.fragmentShader;
       shader.fragmentShader=shader.fragmentShader.replace('#include <clipping_planes_fragment>',
-        '#include <clipping_planes_fragment>\nif(vUv.y > caviCut) discard;\nif(length(vUv)<0.96 && length(vUv)>0.15 && length(fract(vUv*24.0)-0.5)<0.19) discard;');
+        '#include <clipping_planes_fragment>\nif(vUv.y > caviCut) discard;\nif(length(vUv)<0.96 && length(vUv)>0.15 && length(fract(vUv*caviFrequency)-0.5)<caviPoreSize*caviPores) discard;');
     };
     cupMaterial.defines={...cupMaterial.defines,USE_UV:''};
   }
@@ -182,13 +182,21 @@ export function storyPose(progress) {
   const elevation=THREE.MathUtils.lerp(.85,.25,t),azimuth=THREE.MathUtils.lerp(.65,.16,t);
   return {distance,elevation,azimuth,cut:THREE.MathUtils.lerp(2,.22,smooth((progress-.62)/.19))};
 }
-export function exchangePoint(i,time,radius=.048) {
+export function exchangePoint(i,time,radius=.048,frequency=24) {
   // Each path crosses an actual shader pore; motion alternates inward and outward.
-  const u=(i%2?1:-1)*(12.5+(Math.floor(i/2)%4))/24,v=-(8.5+Math.floor(i/8)%5)/24;
+  const u=(i%2?1:-1)*(Math.floor(frequency*.52)+.5+(Math.floor(i/2)%4))/frequency,v=-(Math.floor(frequency*.35)+.5+Math.floor(i/8)%5)/frequency;
   const phase=(time*.18+i*.127)%1,t=i%2?1-phase:phase,scale=1.20-.40*t;
   return [u*radius*scale,-Math.sqrt(1-u*u-v*v)*radius*scale,v*radius*scale];
 }
-export function createStoryProduct() {
+export function homePose(progress) {
+  const p=THREE.MathUtils.clamp(progress,0,1),zoom=smooth(p/.40),porosity=smooth((p-.54)/.12),oxygen=smooth((p-.84)/.12);
+  return {distance:Math.exp(THREE.MathUtils.lerp(Math.log(2.2),Math.log(.235),zoom))+.025*oxygen,
+    elevation:THREE.MathUtils.lerp(.92,.25,zoom),azimuth:THREE.MathUtils.lerp(.62,-.12,zoom)+.12*oxygen,
+    cut:THREE.MathUtils.lerp(2,.20,smooth((p-.24)/.13)),context:1-smooth((p-.24)/.13),
+    coating:smooth((p-.22)/.12),porosity,flow:porosity*(1-oxygen),oxygen,
+    chapter:p<.26?0:p<.54?1:p<.84?2:3};
+}
+export function createStoryProduct(home=false) {
   const model=new THREE.Group(),context=createProduct('film','poro');context.userData.context=true;model.add(context);
   const source=context.children.find(o=>o.userData.cavities),material=source.material.clone();
   material.defines={...source.material.defines};material.onBeforeCompile=source.material.onBeforeCompile;material.userData=source.material.userData;
@@ -210,11 +218,28 @@ export function createStoryProduct() {
     const curve=new THREE.CatmullRomCurve3([new THREE.Vector3(-1.5,-.09,z),new THREE.Vector3(-.5,-.095,z+.06),new THREE.Vector3(.5,-.085,z-.06),new THREE.Vector3(1.5,-.09,z)]);
     const line=new THREE.Line(new THREE.BufferGeometry().setFromPoints(curve.getPoints(60)),new THREE.LineBasicMaterial({color:0x008099,transparent:true,opacity:.13}));line.material.userData.baseOpacity=.13;context.add(line);
   }
+  if(home){
+    Object.assign(material.userData.frequency,{value:48});Object.assign(material.userData.poreSize,{value:.11});material.userData.pores.value=0;
+    material.color.set(0xd3e4e8);material.emissive.set(0x008099);material.emissiveIntensity=0;material.roughness=.22;material.transmission=.15;
+    context.traverse(o=>{if(o.userData.perfusion||o.isLine)o.visible=false;if(o.material?.userData.pores){o.material.userData.frequency.value=48;o.material.userData.poreSize.value=.11;o.material.userData.pores.value=0;}});
+    particles.geometry.dispose();particles.geometry=new THREE.SphereGeometry(.000085,8,6);particles.userData.finePores=true;
+    const fluid=new THREE.Group();fluid.userData.heroFlow=true;model.add(fluid);
+    for(const z of [-.060,-.048,.052,.064]){
+      const curve=new THREE.CatmullRomCurve3([new THREE.Vector3(-.16,-.02,z),new THREE.Vector3(-.055,-.028,z),new THREE.Vector3(.04,-.032,z),new THREE.Vector3(.16,-.02,z)]);
+      const path=new THREE.Line(new THREE.BufferGeometry().setFromPoints(curve.getPoints(60)),new THREE.LineBasicMaterial({color:0x7fe2ec,transparent:true,opacity:.28}));fluid.add(path);
+    }
+    const medium=new THREE.InstancedMesh(new THREE.SphereGeometry(.00055,8,6),new THREE.MeshBasicMaterial({color:0x8eeaf3}),84);medium.userData.heroMedium=true;fluid.add(medium);
+    const rim=new THREE.Mesh(new THREE.TorusGeometry(.048,.0004,8,96,Math.PI*1.14),new THREE.MeshBasicMaterial({color:0x8eeaf3,transparent:true,opacity:0}));rim.rotation.x=Math.PI/2;rim.rotation.z=.22;rim.position.y=.0003;rim.userData.heroRim=true;model.add(rim);
+    const pixels=new Uint8Array(64*64*4);
+    for(let y=0;y<64;y++)for(let x=0;x<64;x++){const d=Math.hypot(x-31.5,y-31.5)/32,i=(y*64+x)*4;pixels[i]=pixels[i+1]=pixels[i+2]=255;pixels[i+3]=Math.round(Math.pow(Math.max(0,1-d),2)*170);}
+    const glowMap=new THREE.DataTexture(pixels,64,64);glowMap.needsUpdate=true;
+    const halo=new THREE.Sprite(new THREE.SpriteMaterial({map:glowMap,color:0x38d3ed,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending}));halo.position.set(0,-.025,-.055);halo.scale.set(.22,.18,1);halo.userData.heroHalo=true;model.add(halo);
+  }
   return model;
 }
 function disposeObject(group){
   const geometries=new Set(),materials=new Set();group.traverse(o=>{if(o.geometry)geometries.add(o.geometry);if(o.material)materials.add(o.material);});
-  geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());
+  geometries.forEach(g=>g.dispose());materials.forEach(m=>{m.map?.dispose();m.dispose();});
 }
 const mounted=new Map();
 export function mount(root=document){
@@ -242,17 +267,19 @@ export function mount(root=document){
     scene.add(new THREE.HemisphereLight(0xffffff,0xa8b8b1,.45));
     const key=new THREE.DirectionalLight(0xfffbef,1.7);key.position.set(-3,5,4);scene.add(key);
     const fill=new THREE.DirectionalLight(0xe2f1ff,.4);fill.position.set(4,2,-3);scene.add(fill);
-    const story=element.closest('[data-poro-story]'),steps=story?[...story.querySelectorAll('.poro-step')]:[];
+    const home=element.closest('[data-home-story]'),story=home||element.closest('[data-poro-story]'),steps=story?[...story.querySelectorAll(home?'.journey-step':'.poro-step')]:[];
+    const stage=story?.querySelector(home?'.journey-stage':'.poro-stage');let manualProgress=0;
     let progress=0;
-    let format=element.dataset.format||'insert',variant=element.dataset.caviModel||'micro',model=story?createStoryProduct():createProduct(format,variant);
+    let format=element.dataset.format||'insert',variant=element.dataset.caviModel||'micro',model=story?createStoryProduct(!!home):createProduct(format,variant);
     scene.add(model);
     const aggregate=format==='aggregate';
     if(aggregate){scene.background=null;model.scale.setScalar(10);}
+    if(home){scene.background=null;key.color.set(0xf5fbff);key.intensity=2.5;fill.color.set(0x78cddd);fill.intensity=.85;}
     // Broad gradient under the object reads as a studio surface, not an interface panel.
     const shadowCanvas=document.createElement('canvas');shadowCanvas.width=128;shadowCanvas.height=128;
     const ctx=shadowCanvas.getContext('2d'),gradient=ctx.createRadialGradient(64,64,8,64,64,64);
     gradient.addColorStop(0,'rgba(34,55,48,.27)');gradient.addColorStop(.45,'rgba(34,55,48,.15)');gradient.addColorStop(1,'rgba(34,55,48,0)');ctx.fillStyle=gradient;ctx.fillRect(0,0,128,128);
-    const shadowTexture=new THREE.CanvasTexture(shadowCanvas),shadow=new THREE.Mesh(new THREE.PlaneGeometry(5,4.3),new THREE.MeshBasicMaterial({map:shadowTexture,transparent:true,depthWrite:false}));shadow.rotation.x=-Math.PI/2;shadow.position.y=-.95;scene.add(shadow);if(aggregate)shadow.visible=false;
+    const shadowTexture=new THREE.CanvasTexture(shadowCanvas),shadow=new THREE.Mesh(new THREE.PlaneGeometry(5,4.3),new THREE.MeshBasicMaterial({map:shadowTexture,transparent:true,depthWrite:false}));shadow.rotation.x=-Math.PI/2;shadow.position.y=-.95;scene.add(shadow);if(aggregate||home)shadow.visible=false;
     const camera=new THREE.PerspectiveCamera(31,1,.001,50);camera.position.set(5.6,5.6,6.2);camera.lookAt(0,-.15,0);
     let frame=0,last=0,time=0,visible=false,disposed=false,lost=false,target=0,angle=0;
     const paused=()=>document.documentElement.classList.contains('motion-paused');
@@ -263,11 +290,21 @@ export function mount(root=document){
     }
     function draw(){if(disposed||lost)return;
       if(story){
-        const pose=storyPose(paused()?.88:progress);
+        const pose=home?homePose(progress):storyPose(paused()?.88:progress);
         const d=pose.distance;camera.position.set(Math.sin(pose.azimuth)*d,Math.sin(pose.elevation)*d-.02,Math.cos(pose.azimuth)*Math.cos(pose.elevation)*d);camera.lookAt(0,-.022,0);
         model.children.find(o=>o.userData.cavities).material.userData.cut.value=pose.cut;
-        const context=model.children.find(o=>o.userData.context),fade=1-smooth(((paused()?.88:progress)-.47)/.23);
+        const context=model.children.find(o=>o.userData.context),fade=home?pose.context:1-smooth(((paused()?.88:progress)-.47)/.23);
         context.visible=fade>.005;context.traverse(o=>{if(o.material)o.material.opacity=o.material.userData.baseOpacity*fade;});
+        if(home){
+          const cup=model.children.find(o=>o.userData.cavities);cup.material.userData.pores.value=pose.porosity*(1-pose.oxygen);
+          cup.material.emissive.setRGB(.02+pose.oxygen*.70,.34-pose.oxygen*.13,.42-pose.oxygen*.38);cup.material.emissiveIntensity=pose.coating*1.5;
+          cup.material.color.setRGB(.66-pose.coating*.28+pose.oxygen*.28,.78-pose.coating*.12,.83-pose.coating*.08-pose.oxygen*.22);
+          model.children.find(o=>o.userData.exchange).visible=pose.flow>.01;
+          model.children.find(o=>o.userData.heroFlow).visible=pose.flow>.01;
+          const rim=model.children.find(o=>o.userData.heroRim);rim.material.opacity=pose.coating*.65;rim.material.color.set(pose.oxygen>.5?0xffb357:0x8eeaf3);
+          const halo=model.children.find(o=>o.userData.heroHalo);halo.material.opacity=pose.coating*.5;halo.material.color.set(pose.oxygen>.5?0xffa331:0x38d3ed);
+          home.style.setProperty('--coating',pose.coating*(1-pose.porosity));home.style.setProperty('--exchange',pose.flow);home.style.setProperty('--oxygen',pose.oxygen);
+        }
       }else if(aggregate){
         camera.position.set(0,.15,3.55);camera.lookAt(0,0,0);model.rotation.set(.18,.4+time*.035,-.12);
       }else{
@@ -278,11 +315,12 @@ export function mount(root=document){
         model.rotation.z=Math.sin(time*.11)*.024;
       }
       model.traverse(o=>{
+        if(o.userData.heroMedium){const m=new THREE.Matrix4(),zs=[-.060,-.048,.052,.064];for(let i=0;i<o.count;i++){const x=((i*.019+time*.022)%.32)-.16;m.makeTranslation(x,-.02-.012*Math.exp(-Math.pow(x/.075,2)),zs[i%4]);o.setMatrixAt(i,m);}o.instanceMatrix.needsUpdate=true;}
         if(o.userData.chipFlow){const m=new THREE.Matrix4();for(let i=0;i<o.count;i++){m.makeTranslation(((i*.27+time*.32)%3.2)-1.6,-.28,(i%3-1)*.6);o.setMatrixAt(i,m);}o.instanceMatrix.needsUpdate=true;}
         if(o.userData.opticalSignal){const m=new THREE.Matrix4();for(let i=0;i<o.count;i++){const p=(time*.5+i/12)%1;m.makeTranslation(i%2?.09:-.09,-.68+(i%2?1-p:p)*.49,0);o.setMatrixAt(i,m);}o.instanceMatrix.needsUpdate=true;}
         if(o.userData.perfusion){const m=new THREE.Matrix4();for(let i=0;i<o.count;i++){const x=((i*.19+time*.075+1.5)%3)-1.5;m.makeTranslation(x,-.09,(i%3-1)*.32+Math.sin(x*2)*.04);o.setMatrixAt(i,m);}o.instanceMatrix.needsUpdate=true;}
         if(o.userData.sensor)o.material.emissiveIntensity=.05+.018*Math.sin(time*.65);
-        if(o.userData.exchange){const m=new THREE.Matrix4();for(let i=0;i<o.count;i++){m.makeTranslation(...exchangePoint(i,time,o.userData.story?.048:.188));o.setMatrixAt(i,m);}o.instanceMatrix.needsUpdate=true;}
+        if(o.userData.exchange){const m=new THREE.Matrix4();for(let i=0;i<o.count;i++){m.makeTranslation(...exchangePoint(i,time,o.userData.story?.048:.188,o.userData.finePores?48:24));o.setMatrixAt(i,m);}o.instanceMatrix.needsUpdate=true;}
       });renderer.render(scene,camera);
     }
     function tick(now){frame=0;if(disposed||lost||paused()||!visible||document.hidden)return;
@@ -291,20 +329,22 @@ export function mount(root=document){
     function sync(){if(story)scrollStory();cancelAnimationFrame(frame);frame=0;if(paused())canvas.getAnimations().forEach(a=>a.cancel());resize();draw();if(!disposed&&!lost&&visible&&!paused()&&!document.hidden){last=performance.now();frame=requestAnimationFrame(tick);}}
     function scrollStory(){
       if(!story||lost)return;
-      const bounds=story.getBoundingClientRect(),stage=story.querySelector('.poro-stage');
+      const bounds=story.getBoundingClientRect();
       const top=parseFloat(getComputedStyle(stage).top)||0;
-      progress=THREE.MathUtils.clamp((top-bounds.top)/Math.max(1,bounds.height-stage.offsetHeight),0,1);
+      progress=home&&paused()?manualProgress:THREE.MathUtils.clamp((top-bounds.top)/Math.max(1,bounds.height-stage.offsetHeight),0,1);
       story.style.setProperty('--story-progress',progress);
-      const active=paused()?2:progress<.30?0:progress<.68?1:2;
+      const active=home?homePose(progress).chapter:paused()?2:progress<.30?0:progress<.68?1:2;
+      if(home){home.dataset.chapter=active;home.querySelector('[data-journey-product]').textContent=['MicroSphere','MicroSphere','PoroSphere','SensoSphere'][active];}
       steps.forEach((step,i)=>{step.classList.toggle('is-active',i===active);step.setAttribute('aria-hidden',i!==active);step.inert=i!==active;});
       story.querySelectorAll('[data-story-jump]').forEach((button,i)=>button.setAttribute('aria-pressed',i===active));
       if(visible)draw();
     }
     const jump=e=>{const button=e.target.closest('[data-story-jump]');if(!button)return;
-      const stage=story.querySelector('.poro-stage'),top=parseFloat(getComputedStyle(stage).top)||0;
+      if(home&&paused()){manualProgress=Number(button.dataset.storyJump);scrollStory();draw();return;}
+      const top=parseFloat(getComputedStyle(stage).top)||0;
       window.scrollTo({top:window.scrollY+story.getBoundingClientRect().top-top+Number(button.dataset.storyJump)*(story.offsetHeight-stage.offsetHeight),behavior:paused()?'instant':'smooth'});
     };
-    if(story){story.classList.add('story-ready');window.addEventListener('scroll',scrollStory,{passive:true});window.addEventListener('resize',scrollStory);story.addEventListener('click',jump);scrollStory();}
+    if(story){story.classList.add(home?'journey-ready':'story-ready');window.addEventListener('scroll',scrollStory,{passive:true});window.addEventListener('resize',scrollStory);story.addEventListener('click',jump);scrollStory();}
     const resizeObserver=new ResizeObserver(sync),observer=new IntersectionObserver(entries=>{visible=entries[0].isIntersecting;sync();},{rootMargin:'50px'});
     const move=e=>{if(e.pointerType!=='touch'){const r=element.getBoundingClientRect();target=((e.clientX-r.left)/r.width-.5)*.18;}};
     const leave=()=>{target=0;};
@@ -315,7 +355,7 @@ export function mount(root=document){
       element.dataset.caviModel=variant;element.dataset.format=format;sync();
       if(!paused())canvas.animate([{opacity:0,filter:'blur(9px)'},{opacity:1,filter:'blur(0)'}],{duration:700,easing:'cubic-bezier(.16,1,.3,1)'});
     };
-    const contextLost=e=>{e.preventDefault();lost=true;cancelAnimationFrame(frame);element.classList.remove('model-ready');element.dataset.modelStatus='fallback';if(story){story.classList.remove('story-ready');steps.forEach(step=>{step.removeAttribute('aria-hidden');step.inert=false;});}};
+    const contextLost=e=>{e.preventDefault();lost=true;cancelAnimationFrame(frame);element.classList.remove('model-ready');element.dataset.modelStatus='fallback';if(story){story.classList.remove(home?'journey-ready':'story-ready');if(home)home.querySelector('[data-journey-product]').textContent='MicroSphere';steps.forEach(step=>{step.removeAttribute('aria-hidden');step.inert=false;});}};
     canvas.addEventListener('webglcontextlost',contextLost);element.append(canvas);element.classList.add('model-ready');element.dataset.modelStatus='ready';
     element.addEventListener('pointermove',move,{passive:true});element.addEventListener('pointerleave',leave);
     document.addEventListener('cavigen:scene',change);document.addEventListener('cavigen:motion',sync);document.addEventListener('visibilitychange',sync);
