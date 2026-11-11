@@ -182,3 +182,11 @@
 @media(max-width:1050px){.journey-controls .journey-product{font-size:28px;min-width:170px}.journey-ready .journey-controls{gap:14px;padding:12px 18px}.journey-ready .annotation-coating{left:65%;max-width:280px}.annotation-coating strong{font-size:21px}}
 @media(max-width:700px){.journey-ready .journey-copy{top:112px}.journey-ready .journey-controls{display:flex;flex-direction:column;align-items:stretch;gap:12px;padding:16px 10px 10px;bottom:16px;border-radius:23px}.journey-controls .journey-product{text-align:center;font-size:27px;min-width:0}.journey-controls nav{justify-content:center}.journey-controls button{padding:10px 11px;min-height:42px}.journey-ready .journey-visual{top:34%;height:52%}.journey-ready .annotation-coating{left:auto;right:24px;bottom:20%;padding:9px 12px;max-width:260px}.annotation-coating strong{font-size:20px}.annotation-coating span{font-size:16px;margin-top:5px}.journey-ready .annotation-flow,.journey-ready .annotation-sensor{bottom:19%}}
 @media(max-width:700px) and (max-height:720px){.journey-ready .annotation-coating{bottom:21%;padding:8px 10px}.annotation-coating strong{font-size:18px}.annotation-coating span{font-size:15px}.journey-ready .journey-visual{top:30%;height:52%}}
+
+/* Wall exchange and communication remain anchored in the shared 3D scene. */
+.journey-ready .flow-leader,.journey-ready .annotation-flow{opacity:var(--exchange)}
+.journey-ready .interaction-leader,.journey-ready .annotation-interaction{opacity:var(--interaction,0)}
+.journey-ready .annotation-flow{left:auto;right:5%;top:24%;bottom:auto;max-width:270px}
+.journey-ready .annotation-interaction{left:46%;bottom:23%;max-width:300px}
+.annotation-interaction strong{font-size:21px}
+@media(max-width:700px){.journey-ready .annotation-flow{left:auto;right:18px;top:41%;bottom:auto;max-width:210px}.journey-ready .annotation-interaction{left:20px;right:auto;bottom:20%;max-width:255px}.annotation-flow strong,.annotation-interaction strong{font-size:18px}.annotation-flow span,.annotation-interaction span{font-size:14px}.journey-ready[data-chapter="2"] .journey-visual{top:36%;height:48%}}
