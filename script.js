@@ -18,8 +18,14 @@ const mobileQuery = window.matchMedia('(max-width: 700px)');
 mobileQuery.addEventListener('change', () => { if (!mobileQuery.matches) closeMenu(); });
 const currentFile = location.pathname.split('/').pop() || 'index.html';
 navigation.querySelectorAll('a').forEach(link => { if (link.getAttribute('href') === currentFile) link.setAttribute('aria-current', 'page'); });
-function updateHeader() { header.classList.toggle('scrolled', window.scrollY > 15); }
-window.addEventListener('scroll', updateHeader, { passive: true }); updateHeader();
+const homeJourney = document.querySelector('[data-home-story]');
+function updateHeader() {
+  header.classList.toggle('scrolled', window.scrollY > 15);
+  header.classList.toggle('over-journey', !!homeJourney && homeJourney.getBoundingClientRect().bottom > header.offsetHeight);
+}
+window.addEventListener('scroll', updateHeader, { passive: true });
+window.addEventListener('resize', updateHeader);
+document.addEventListener('cavigen:motion', updateHeader); updateHeader();
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 const motionToggle = document.querySelector('#motion-toggle');
 let paused = reducedMotion.matches;

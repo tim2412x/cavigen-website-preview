@@ -8,6 +8,8 @@ The preview includes a guided product finder, animated illustrations of CaviSphe
 
 The homepage opens with one continuous scroll journey: MicroSphere cavity field → non-adherent coating → PoroSphere fine pores and medium/nutrient exchange → SensoSphere oxygen-sensing invitation. MicroSphere remains labelled through the first two chapters. Glow is a visual explanation of a coating, not a statement of visible physical emission. The new hero pores have more than three times smaller illustrative radii than the earlier macro view.
 
+The logo and navigation stay visible throughout the journey. The lower chapter bar prominently identifies the active product. A camera-tracked leader labels the coated inner wall and explains its non-adherent function.
+
 Normal page scrolling controls the camera; chapter buttons allow direct navigation. With motion paused, the same buttons switch explanatory still views. Without WebGL, all chapters remain readable with matching product stills. The SensoSphere invitation currently links to the existing oxygen application section; a separate SensoSphere page is deferred.
 
 All cell aggregates retain the shared compact, opaque 79-cell geometry. The insert is unchanged pending supplied production assets. Cell counts, pore dimensions, chip layouts and optical colours are schematic, not measured data. The brand page documents the updated motion direction.
