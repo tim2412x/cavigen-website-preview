@@ -386,7 +386,9 @@ export function mount(root=document){
       const active=home?homePose(progress).chapter:paused()?2:progress<.30?0:progress<.68?1:2;
       if(home){home.dataset.chapter=active;const label=home.querySelector('[data-journey-product]'),product=['MicroSphere','MicroSphere','PoroSphere','SensoSphere'][active];if(label.textContent!==product)label.textContent=product;}
       steps.forEach((step,i)=>{step.classList.toggle('is-active',i===active);step.setAttribute('aria-hidden',i!==active);step.inert=i!==active;});
-      story.querySelectorAll('[data-story-jump]').forEach((button,i)=>button.setAttribute('aria-pressed',i===active));
+      const activeProduct=home?Math.max(0,active-1):active;
+      if(home)home.style.setProperty('--active-product',activeProduct);
+      story.querySelectorAll('[data-story-jump]').forEach((button,i)=>button.setAttribute('aria-pressed',i===activeProduct));
       if(visible)draw();
     }
     const jump=e=>{const button=e.target.closest('[data-story-jump]');if(!button)return;
