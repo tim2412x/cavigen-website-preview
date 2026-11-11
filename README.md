@@ -4,9 +4,11 @@ Design preview of a proposed CAVIGEN website. This is a concept presentation, no
 
 The preview includes a guided product finder, animated illustrations of CaviSphere inserts and films, and a brand application study. Product geometry is approximated from photographs; the illustrations are not CAD models, microscopy or experimental results.
 
-## Product animation update · November 2026
+## Product animation update · 11 November 2026
 
-The insert has a tall cylindrical body, a film at its base, and three outward hanging flanges at the top, modelled from the supplied top and underside photographs. Cells form touching, compact aggregates. Films include an unstructured margin. The PoroSphere application uses a continuous scroll-driven macro view with many small wall pores and bidirectional molecule exchange. Pause motion provides a static cutaway; devices without WebGL retain product stills and readable explanatory content. Dimensions, pore sizes and cell counts are illustrative and require product-team review before production use.
+All illustrative cell aggregates use the same compact, opaque 79-cell geometry, with subtle irregularity and stable rotation. MicroSphere shows culture in cavities; PoroSphere shows a schematic Organ-on-Chip with medium flow; SensoSphere shows optical excitation and fluorescence readout. The homepage and platform comparison now distinguish these application contexts. Product stills and a transparent aggregate fallback support devices without WebGL.
+
+The insert model is intentionally unchanged pending supplied production assets. The brand study documents the future material, lighting and camera direction; these are design targets, not a claim of finished cinematic animation. Chip layout, cell count, pore sizes and optical colours are illustrative, not measured data or a particular partner device. Pause motion retains an explanatory static view.
 
 ## Preview with GitHub Pages
 
