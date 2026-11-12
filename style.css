@@ -190,3 +190,13 @@
 .journey-ready .annotation-interaction{left:46%;bottom:23%;max-width:300px}
 .annotation-interaction strong{font-size:21px}
 @media(max-width:700px){.journey-ready .annotation-flow{left:auto;right:18px;top:41%;bottom:auto;max-width:210px}.journey-ready .annotation-interaction{left:20px;right:auto;bottom:20%;max-width:255px}.annotation-flow strong,.annotation-interaction strong{font-size:18px}.annotation-flow span,.annotation-interaction span{font-size:14px}.journey-ready[data-chapter="2"] .journey-visual{top:36%;height:48%}}
+
+/* Three products share one moving selection; MicroSphere spans culture and coating. */
+.journey-ready .journey-controls{padding:8px;gap:0;border-radius:38px}
+.journey-controls nav{position:relative;isolation:isolate;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));width:100%;gap:0;padding:0}
+.journey-controls nav::before{content:"";position:absolute;inset:0 auto 0 0;width:calc(100% / 3);border:1px solid #fff;border-radius:30px;background:#e8f3f4;transform:translateX(calc(var(--active-product,0) * 100%));transition:transform .65s var(--ease);z-index:-1}
+.journey-controls button{font-size:clamp(20px,2.3vw,30px);font-weight:500;padding:15px 12px;min-width:0;background:transparent;transition:color .35s}
+.journey-controls button[aria-pressed=true]{background:transparent;color:#14333e}
+@media(max-width:700px){.journey-ready .journey-controls{padding:6px;border-radius:30px}.journey-controls button{font-size:clamp(14px,4vw,18px);padding:13px 3px;min-height:46px}}
+.motion-paused .journey-controls nav::before{transition:none}
+@media(prefers-reduced-motion:reduce){.journey-controls nav::before{transition:none}}
