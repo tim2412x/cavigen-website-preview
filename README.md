@@ -6,7 +6,7 @@ The preview includes a guided product finder, animated illustrations of CaviSphe
 
 ## Product animation update · 16 November 2026
 
-The homepage opens with one continuous scroll journey: MicroSphere cavity field → cell-culture close-up → PoroSphere fine pores and medium/nutrient exchange → SensoSphere oxygen-sensing invitation. MicroSphere remains labelled through the first two chapters. No pre-applied non-adherent coating is claimed. The new hero pores have more than three times smaller illustrative radii than the earlier macro view.
+The homepage starts closer to a continuous microcavity film, using an 81-cavity field instead of 391 cavities. Adjacent cavities share the central material and opaque cell appearance; the flat web remains joined through a shared section plane. Offscreen product models initialise only near the viewport, and the hero pixel ratio is capped at 1.25. This reduces startup/render work, not the bundled Three.js download size. The continuous scroll journey: MicroSphere cavity field → cell-culture close-up → PoroSphere fine pores and medium/nutrient exchange → SensoSphere oxygen-sensing invitation. MicroSphere remains labelled through the first two chapters. No pre-applied non-adherent coating is claimed. The new hero pores have more than three times smaller illustrative radii than the earlier macro view.
 
 PoroSphere porosity now opens earlier. A gently widening view reveals neighbouring cultures, translucent moving medium streams and coloured nutrient markers. Streams enter and leave through actual pore centres; retained cells remain still. Camera-tracked labels explain the porous structure and cell-to-cell signalling. Flow geometry and particle colours are illustrative.
 
