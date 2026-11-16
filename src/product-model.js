@@ -21,6 +21,7 @@ function circle(radius, hole=false) {
   const path=hole?new THREE.Path():new THREE.Shape();path.absarc(0,0,radius,0,Math.PI*2,hole);return path;
 }
 export function gridCenters(format) {
+  if(format==='hero')return Array.from({length:81},(_,i)=>[(i%9-4)*modelSpec.pitch,(Math.floor(i/9)-4)*modelSpec.pitch]);
   if(format==='detail')return Array.from({length:25},(_,i)=>[(i%5-2)*.43,(Math.floor(i/5)-2)*.43]);
   const centers=[];
   for(let z=format==='insert'?-9:-8;z<=(format==='insert'?9:8);z++)for(let x=-11;x<=11;x++){
@@ -29,8 +30,8 @@ export function gridCenters(format) {
   }
   return centers;
 }
-export function cavityGeometry(radius,pitch) {
-  const positions=[],normals=[],uvs=[],rings=24,segments=64;
+export function cavityGeometry(radius,pitch,rings=24,segments=64) {
+  const positions=[],normals=[],uvs=[];
   function point(u,v) {
     const a=u*Math.PI*2;
     // The hemisphere continues into a narrow flat web between neighbouring cups.
@@ -91,14 +92,16 @@ export function createProduct(format='insert',variant='micro') {
     const cut={value:2},pores={value:1},frequency={value:24},poreSize={value:.19},softEdge={value:0};Object.assign(cupMaterial.userData,{cut,pores,frequency,poreSize,softEdge});
     cupMaterial.onBeforeCompile=shader=>{
       Object.assign(shader.uniforms,{caviCut:cut,caviPores:pores,caviFrequency:frequency,caviPoreSize:poreSize,caviSoftEdge:softEdge});
-      shader.fragmentShader='uniform float caviCut; uniform float caviPores; uniform float caviFrequency; uniform float caviPoreSize; uniform float caviSoftEdge;\n'+shader.fragmentShader;
+      shader.vertexShader='varying vec3 vCaviPosition;\n'+shader.vertexShader;
+      shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvec4 caviPosition=vec4(transformed,1.0);\n#ifdef USE_INSTANCING\ncaviPosition=instanceMatrix*caviPosition;\n#endif\nvCaviPosition=caviPosition.xyz;');
+      shader.fragmentShader='varying vec3 vCaviPosition; uniform float caviCut; uniform float caviPores; uniform float caviFrequency; uniform float caviPoreSize; uniform float caviSoftEdge;\n'+shader.fragmentShader;
       shader.fragmentShader=shader.fragmentShader.replace('#include <clipping_planes_fragment>',
-        '#include <clipping_planes_fragment>\nif(vUv.y > caviCut) discard;\nif(length(vUv)<0.96 && length(vUv)>0.15 && length(fract(vUv*caviFrequency)-0.5)<caviPoreSize*caviPores) discard;');
-      shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>','#include <color_fragment>\nif(caviSoftEdge > 0.5){ diffuseColor.a *= 1.0-smoothstep(0.99,1.16,length(vUv)); diffuseColor.a *= 1.0-smoothstep(caviCut-0.10,caviCut,vUv.y); }');
+        '#include <clipping_planes_fragment>\nfloat sectionZ=caviSoftEdge>0.5?vCaviPosition.z/0.048:vUv.y;\nif(sectionZ > caviCut) discard;\nif(length(vUv)<0.96 && length(vUv)>0.15 && length(fract(vUv*caviFrequency)-0.5)<caviPoreSize*caviPores) discard;');
+      shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>','#include <color_fragment>\nif(caviSoftEdge > 0.5){ diffuseColor.a *= 1.0-smoothstep(caviCut-0.10,caviCut,sectionZ); }');
     };
     cupMaterial.defines={...cupMaterial.defines,USE_UV:''};
   }
-  const cups=addInstances(group,cavityGeometry(radius,pitch),cupMaterial,centers,y);cups.userData.cavities=true;
+  const cups=addInstances(group,cavityGeometry(radius,pitch,format==='hero'?16:24,format==='hero'?40:64),cupMaterial,centers,y);cups.userData.cavities=true;
   // A continuous, unstructured margin extends beyond the final row of cavities.
   const carrier=format==='insert'?circle(1.21):roundedPath(new THREE.Shape(),detail?-1.32:-1.55,detail?-1.32:-1.16,detail?2.64:3.10,detail?2.64:2.32,.065);
   if(format==='insert'){
@@ -203,20 +206,20 @@ export function mediumWidth(x,lane) {
 }
 export function homePose(progress) {
   const p=THREE.MathUtils.clamp(progress,0,1),zoom=smooth(p/.40),porosity=smooth((p-.46)/.09),oxygen=smooth((p-.84)/.12);
-  return {distance:Math.exp(THREE.MathUtils.lerp(Math.log(2.2),Math.log(.30),zoom))+.095*porosity*(1-oxygen)+.10*oxygen,
-    elevation:THREE.MathUtils.lerp(.92,.25,zoom),azimuth:THREE.MathUtils.lerp(.62,-.12,zoom)+.12*oxygen,
-    cut:THREE.MathUtils.lerp(2,.20,smooth((p-.10)/.22)),context:1-smooth((p-.12)/.16),
+  return {distance:Math.exp(THREE.MathUtils.lerp(Math.log(1.1),Math.log(.30),zoom))+.095*porosity*(1-oxygen)+.10*oxygen,
+    elevation:THREE.MathUtils.lerp(.76,.25,zoom),azimuth:THREE.MathUtils.lerp(.46,-.12,zoom)+.12*oxygen,
+    cut:THREE.MathUtils.lerp(12,.20,smooth((p-.10)/.22)),context:1-smooth((p-.12)/.16),
     porosity,flow:porosity*(1-oxygen),oxygen,
     interaction:smooth((p-.60)/.09)*(1-oxygen),chapter:p<.26?0:p<.46?1:p<.84?2:3};
 }
 export function createStoryProduct(home=false) {
-  const model=new THREE.Group(),context=createProduct('film','poro');context.userData.context=true;model.add(context);
+  const model=new THREE.Group(),context=createProduct(home?'hero':'film','poro');context.userData.context=true;model.add(context);
   const source=context.children.find(o=>o.userData.cavities),material=source.material.clone();
   material.defines={...source.material.defines};material.onBeforeCompile=source.material.onBeforeCompile;material.userData=source.material.userData;
   material.transmission=.22;material.roughness=.30;material.color.set(0xdceae1);material.transparent=true;material.opacity=.92;
   const central=addInstances(model,cavityGeometry(.048,.112),material,[[0,0]]);central.userData.cavities=true;
   // The central cavity stays fixed while its surroundings recede during the macro reveal.
-  const gone=new THREE.Matrix4().makeScale(0,0,0),centers=gridCenters('film'),nearby=[[-.112,0],[.112,0],[0,-.112]];
+  const gone=new THREE.Matrix4().makeScale(0,0,0),centers=gridCenters(home?'hero':'film'),nearby=[[-.112,0],[.112,0],[0,-.112]];
   const isNeighbour=(x,z)=>home&&nearby.some(([nx,nz])=>Math.abs(x-nx)<1e-8&&Math.abs(z-nz)<1e-8);
   if(home)centers.forEach(([x,z],i)=>{if(isNeighbour(x,z))source.setMatrixAt(i,gone);});
   source.setMatrixAt(centers.findIndex(([x,z])=>x===0&&z===0),gone);source.instanceMatrix.needsUpdate=true;
@@ -235,15 +238,15 @@ export function createStoryProduct(home=false) {
   }
   if(home){
     Object.assign(material.userData.frequency,{value:48});Object.assign(material.userData.poreSize,{value:.11});material.userData.pores.value=0;
-    material.color.set(0xd3e4e8);material.emissive.set(0x008099);material.emissiveIntensity=0;material.roughness=.28;material.transmission=0;material.depthWrite=false;material.userData.softEdge.value=1;
-    context.traverse(o=>{if(o.material){o.material.depthWrite=false;if(o.material.transmission!==undefined)o.material.transmission=0;if(o.userData.cavities)o.material.userData.baseOpacity=.48;}if(o.userData.filmMargin||o.userData.perfusion||o.isLine)o.visible=false;if(o.material?.userData.pores){o.material.userData.frequency.value=48;o.material.userData.poreSize.value=.11;o.material.userData.pores.value=0;}});
+    material.color.set(0xd3e4e8);material.emissive.set(0x008099);material.emissiveIntensity=0;material.roughness=.28;material.opacity=.65;material.transmission=0;material.depthWrite=false;material.userData.softEdge.value=1;
+    context.traverse(o=>{if(o.material){o.material.depthWrite=false;if(o.material.transmission!==undefined)o.material.transmission=0;if(o.userData.cavities){o.material.userData.baseOpacity=.65;o.material.roughness=material.roughness;o.material.color.copy(material.color);}}if(o.userData.filmMargin||o.userData.perfusion||o.isLine)o.visible=false;if(o.material?.userData.pores){o.material.userData.frequency.value=48;o.material.userData.poreSize.value=.11;o.material.userData.pores.value=0;}});
     particles.geometry.dispose();particles.geometry=new THREE.SphereGeometry(.000085,8,6);particles.userData.finePores=true;
     const fluid=new THREE.Group();fluid.userData.heroFlow=true;model.add(fluid);
     const neighbours=new THREE.Group();neighbours.userData.heroNeighbours=true;model.add(neighbours);
-    const ghost=material.clone();ghost.onBeforeCompile=material.onBeforeCompile;ghost.defines={...material.defines};ghost.userData=material.userData;ghost.opacity=.18;ghost.depthWrite=false;
-    addInstances(neighbours,cavityGeometry(.048,.112),ghost,nearby);
+    addInstances(neighbours,central.geometry,material,nearby);
     const neighbourCells=createCellAggregate(nearby.map(([x,z])=>[x,-.101*ratio,z]),ratio,16);
-    neighbourCells.material.transparent=true;neighbourCells.material.opacity=.18;neighbourCells.material.depthWrite=false;neighbours.add(neighbourCells);
+    neighbourCells.material.depthWrite=false;neighbours.add(neighbourCells);
+    model.traverse(o=>{if(o.userData.aggregate){o.material.transparent=true;o.material.depthWrite=false;o.renderOrder=2;}});
 
     for(let lane=0;lane<10;lane++){
       const points=Array.from({length:321},(_,i)=>new THREE.Vector3(...mediumPoint(lane,i/320)));
@@ -296,7 +299,7 @@ export function mount(root=document){
     let renderer;
     try{renderer=new THREE.WebGLRenderer({antialias:true,alpha:true,powerPreference:'low-power'});}catch(_){element.dataset.modelStatus='fallback';mounted.set(element,()=>{document.removeEventListener('cavigen:scene',fallbackChange);mounted.delete(element);});continue;}
     const canvas=renderer.domElement;canvas.setAttribute('aria-hidden','true');
-    renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.5));renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=.95;
+    renderer.setPixelRatio(Math.min(devicePixelRatio||1,element.closest('[data-home-story]')?1.25:1.5));renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=.95;
     const scene=new THREE.Scene();
     const backdrop=document.createElement('canvas');backdrop.width=2;backdrop.height=256;
     const backdropContext=backdrop.getContext('2d'),wash=backdropContext.createLinearGradient(0,0,0,256);
@@ -341,6 +344,7 @@ export function mount(root=document){
           const cup=model.children.find(o=>o.userData.cavities);cup.material.userData.pores.value=pose.porosity*(1-pose.oxygen);
           cup.material.emissive.set(0xc08138);cup.material.emissiveIntensity=pose.oxygen*.32;
           cup.material.color.setRGB(.70+pose.oxygen*.18,.82-pose.oxygen*.05,.86-pose.oxygen*.25);
+          context.children.find(o=>o.userData.cavities).material.color.copy(cup.material.color);
           model.children.find(o=>o.userData.exchange).visible=pose.flow>.01;
           const fluid=model.children.find(o=>o.userData.heroFlow);fluid.visible=pose.flow>.01;
           fluid.traverse(o=>{if(o.material?.userData.flowTime){o.material.userData.flowTime.value=time;o.material.opacity=.24*pose.flow;}});
@@ -430,4 +434,10 @@ export function mount(root=document){
   }
 }
 export function unmount(root){for(const [element,dispose] of mounted)if(root.contains(element))dispose();}
-if(typeof document!=='undefined')mount();
+if(typeof document!=='undefined'){
+  // Defer offscreen WebGL contexts and geometry until their section approaches the viewport.
+  const pending=new IntersectionObserver(entries=>{for(const entry of entries)if(entry.isIntersecting){pending.unobserve(entry.target);mount({querySelectorAll:()=>[entry.target]});}},{rootMargin:'300px'});
+  for(const element of document.querySelectorAll('[data-cavi-model]')){
+    if(element.closest('[data-home-story]'))mount({querySelectorAll:()=>[element]});else pending.observe(element);
+  }
+}
