@@ -88,12 +88,13 @@ export function createProduct(format='insert',variant='micro') {
   const centers=gridCenters(format),pitch=detail?.43:modelSpec.pitch,radius=detail?.188:modelSpec.radius,y=0;
   const cupMaterial=film.clone();
   if(variant==='poro') {
-    const cut={value:2},pores={value:1},frequency={value:24},poreSize={value:.19};Object.assign(cupMaterial.userData,{cut,pores,frequency,poreSize});
+    const cut={value:2},pores={value:1},frequency={value:24},poreSize={value:.19},softEdge={value:0};Object.assign(cupMaterial.userData,{cut,pores,frequency,poreSize,softEdge});
     cupMaterial.onBeforeCompile=shader=>{
-      Object.assign(shader.uniforms,{caviCut:cut,caviPores:pores,caviFrequency:frequency,caviPoreSize:poreSize});
-      shader.fragmentShader='uniform float caviCut; uniform float caviPores; uniform float caviFrequency; uniform float caviPoreSize;\n'+shader.fragmentShader;
+      Object.assign(shader.uniforms,{caviCut:cut,caviPores:pores,caviFrequency:frequency,caviPoreSize:poreSize,caviSoftEdge:softEdge});
+      shader.fragmentShader='uniform float caviCut; uniform float caviPores; uniform float caviFrequency; uniform float caviPoreSize; uniform float caviSoftEdge;\n'+shader.fragmentShader;
       shader.fragmentShader=shader.fragmentShader.replace('#include <clipping_planes_fragment>',
         '#include <clipping_planes_fragment>\nif(vUv.y > caviCut) discard;\nif(length(vUv)<0.96 && length(vUv)>0.15 && length(fract(vUv*caviFrequency)-0.5)<caviPoreSize*caviPores) discard;');
+      shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>','#include <color_fragment>\nif(caviSoftEdge > 0.5){ diffuseColor.a *= 1.0-smoothstep(0.99,1.16,length(vUv)); diffuseColor.a *= 1.0-smoothstep(caviCut-0.10,caviCut,vUv.y); }');
     };
     cupMaterial.defines={...cupMaterial.defines,USE_UV:''};
   }
@@ -202,10 +203,10 @@ export function mediumWidth(x,lane) {
 }
 export function homePose(progress) {
   const p=THREE.MathUtils.clamp(progress,0,1),zoom=smooth(p/.40),porosity=smooth((p-.46)/.09),oxygen=smooth((p-.84)/.12);
-  return {distance:Math.exp(THREE.MathUtils.lerp(Math.log(2.2),Math.log(.235),zoom))+.16*porosity*(1-oxygen)+.025*oxygen,
+  return {distance:Math.exp(THREE.MathUtils.lerp(Math.log(2.2),Math.log(.30),zoom))+.095*porosity*(1-oxygen)+.10*oxygen,
     elevation:THREE.MathUtils.lerp(.92,.25,zoom),azimuth:THREE.MathUtils.lerp(.62,-.12,zoom)+.12*oxygen,
-    cut:THREE.MathUtils.lerp(2,.20,smooth((p-.24)/.13)),context:1-smooth((p-.24)/.13),
-    coating:smooth((p-.22)/.12),porosity,flow:porosity*(1-oxygen),oxygen,
+    cut:THREE.MathUtils.lerp(2,.20,smooth((p-.10)/.22)),context:1-smooth((p-.12)/.16),
+    porosity,flow:porosity*(1-oxygen),oxygen,
     interaction:smooth((p-.60)/.09)*(1-oxygen),chapter:p<.26?0:p<.46?1:p<.84?2:3};
 }
 export function createStoryProduct(home=false) {
@@ -215,11 +216,13 @@ export function createStoryProduct(home=false) {
   material.transmission=.22;material.roughness=.30;material.color.set(0xdceae1);material.transparent=true;material.opacity=.92;
   const central=addInstances(model,cavityGeometry(.048,.112),material,[[0,0]]);central.userData.cavities=true;
   // The central cavity stays fixed while its surroundings recede during the macro reveal.
-  const gone=new THREE.Matrix4().makeScale(0,0,0),centers=gridCenters('film');
+  const gone=new THREE.Matrix4().makeScale(0,0,0),centers=gridCenters('film'),nearby=[[-.112,0],[.112,0],[0,-.112]];
+  const isNeighbour=(x,z)=>home&&nearby.some(([nx,nz])=>Math.abs(x-nx)<1e-8&&Math.abs(z-nz)<1e-8);
+  if(home)centers.forEach(([x,z],i)=>{if(isNeighbour(x,z))source.setMatrixAt(i,gone);});
   source.setMatrixAt(centers.findIndex(([x,z])=>x===0&&z===0),gone);source.instanceMatrix.needsUpdate=true;
   const ratio=.048/.188;
   model.add(createCellAggregate([[0,-.101*ratio,0]],ratio));
-  context.add(createCellAggregate(centers.filter(([x,z])=>x!==0||z!==0).map(([x,z])=>[x,-.101*ratio,z]),ratio,12));
+  context.add(createCellAggregate(centers.filter(([x,z])=>(x!==0||z!==0)&&!isNeighbour(x,z)).map(([x,z])=>[x,-.101*ratio,z]),ratio,12));
   context.traverse(o=>{if(o.material){const compile=o.material.onBeforeCompile,defines={...o.material.defines};o.material=o.material.clone();o.material.defines=defines;o.material.onBeforeCompile=compile;o.material.transparent=true;o.material.userData.baseOpacity=o.material.opacity;}});
   const particles=new THREE.InstancedMesh(new THREE.SphereGeometry(.00032,8,6),new THREE.MeshBasicMaterial({color:0xffa330}),80);
   const exchangeColor=new THREE.Color();for(let i=0;i<80;i++){exchangeColor.set(i%2?0xffa330:0x008099);particles.setColorAt(i,exchangeColor);}
@@ -232,16 +235,16 @@ export function createStoryProduct(home=false) {
   }
   if(home){
     Object.assign(material.userData.frequency,{value:48});Object.assign(material.userData.poreSize,{value:.11});material.userData.pores.value=0;
-    material.color.set(0xd3e4e8);material.emissive.set(0x008099);material.emissiveIntensity=0;material.roughness=.22;material.transmission=.15;
-    context.traverse(o=>{if(o.userData.perfusion||o.isLine)o.visible=false;if(o.material?.userData.pores){o.material.userData.frequency.value=48;o.material.userData.poreSize.value=.11;o.material.userData.pores.value=0;}});
+    material.color.set(0xd3e4e8);material.emissive.set(0x008099);material.emissiveIntensity=0;material.roughness=.28;material.transmission=0;material.depthWrite=false;material.userData.softEdge.value=1;
+    context.traverse(o=>{if(o.material){o.material.depthWrite=false;if(o.material.transmission!==undefined)o.material.transmission=0;if(o.userData.cavities)o.material.userData.baseOpacity=.48;}if(o.userData.filmMargin||o.userData.perfusion||o.isLine)o.visible=false;if(o.material?.userData.pores){o.material.userData.frequency.value=48;o.material.userData.poreSize.value=.11;o.material.userData.pores.value=0;}});
     particles.geometry.dispose();particles.geometry=new THREE.SphereGeometry(.000085,8,6);particles.userData.finePores=true;
     const fluid=new THREE.Group();fluid.userData.heroFlow=true;model.add(fluid);
-    // Neighbouring cultures stay subordinate to the central cavity.
     const neighbours=new THREE.Group();neighbours.userData.heroNeighbours=true;model.add(neighbours);
-    const ghost=material.clone();ghost.onBeforeCompile=material.onBeforeCompile;ghost.defines={...material.defines};ghost.userData=material.userData;ghost.depthWrite=false;
-    neighbours.add(addInstances(new THREE.Group(),cavityGeometry(.048,.112),ghost,[[-.112,0],[.112,0]]));
-    const neighbourCells=createCellAggregate([[-.112,-.101*ratio,0],[.112,-.101*ratio,0]],ratio,16);
-    neighbourCells.material.transparent=true;neighbourCells.material.depthWrite=false;neighbours.add(neighbourCells);
+    const ghost=material.clone();ghost.onBeforeCompile=material.onBeforeCompile;ghost.defines={...material.defines};ghost.userData=material.userData;ghost.opacity=.18;ghost.depthWrite=false;
+    addInstances(neighbours,cavityGeometry(.048,.112),ghost,nearby);
+    const neighbourCells=createCellAggregate(nearby.map(([x,z])=>[x,-.101*ratio,z]),ratio,16);
+    neighbourCells.material.transparent=true;neighbourCells.material.opacity=.18;neighbourCells.material.depthWrite=false;neighbours.add(neighbourCells);
+
     for(let lane=0;lane<10;lane++){
       const points=Array.from({length:321},(_,i)=>new THREE.Vector3(...mediumPoint(lane,i/320)));
       const curve=new THREE.CatmullRomCurve3(points),geometry=new THREE.TubeGeometry(curve,320,.0009,6,false);
@@ -261,7 +264,14 @@ export function createStoryProduct(home=false) {
     const medium=new THREE.InstancedMesh(new THREE.SphereGeometry(.000075,8,6),new THREE.MeshBasicMaterial({color:0xffffff}),180);
     const nutrientColor=new THREE.Color();for(let i=0;i<medium.count;i++)medium.setColorAt(i,nutrientColor.set([0xffbb69,0xa5edf3,0xa6cf9a][i%3]));
     medium.userData.heroMedium=true;fluid.add(medium);
-    const rim=new THREE.Mesh(new THREE.TorusGeometry(.048,.0004,8,96,Math.PI*1.14),new THREE.MeshBasicMaterial({color:0x8eeaf3,transparent:true,opacity:0}));rim.rotation.x=Math.PI/2;rim.rotation.z=.22;rim.position.y=.0003;rim.userData.heroRim=true;model.add(rim);
+    const optics=new THREE.Group();optics.userData.heroOptics=true;model.add(optics);
+    const barrelMaterial=new THREE.MeshPhysicalMaterial({color:0x42606b,metalness:.65,roughness:.32,transparent:true,opacity:.8,depthWrite:false});
+    const barrel=new THREE.Mesh(new THREE.CylinderGeometry(.020,.025,.020,48),barrelMaterial);barrel.position.y=-.116;optics.add(barrel);
+    const lens=new THREE.Mesh(new THREE.CylinderGeometry(.018,.018,.003,48),new THREE.MeshPhysicalMaterial({color:0x8cdce9,metalness:.25,roughness:.12,emissive:0x237b98,emissiveIntensity:.3,transparent:true,opacity:.7,depthWrite:false}));lens.position.y=-.104;optics.add(lens);
+    const rim=new THREE.Mesh(new THREE.TorusGeometry(.020,.001,8,64),barrelMaterial.clone());rim.rotation.x=Math.PI/2;rim.position.y=-.104;optics.add(rim);
+    const beam=new THREE.Mesh(new THREE.CylinderGeometry(.034,.017,.059,48,1,true),new THREE.MeshBasicMaterial({color:0x8edff2,transparent:true,opacity:.075,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide}));beam.position.y=-.0745;optics.add(beam);
+    const light=new THREE.InstancedMesh(new THREE.SphereGeometry(1,8,6),new THREE.MeshBasicMaterial({color:0xb6eaf6,transparent:true,opacity:.7,depthWrite:false}),32);light.userData.heroExcitation=true;optics.add(light);
+    optics.traverse(o=>{if(o.material)o.material.userData.baseOpacity=o.material.opacity;});
     const pixels=new Uint8Array(64*64*4);
     for(let y=0;y<64;y++)for(let x=0;x<64;x++){const d=Math.hypot(x-31.5,y-31.5)/32,i=(y*64+x)*4;pixels[i]=pixels[i+1]=pixels[i+2]=255;pixels[i+3]=Math.round(Math.pow(Math.max(0,1-d),2)*170);}
     const glowMap=new THREE.DataTexture(pixels,64,64);glowMap.needsUpdate=true;
@@ -323,33 +333,32 @@ export function mount(root=document){
     function draw(){if(disposed||lost)return;
       if(story){
         const pose=home?homePose(progress):storyPose(paused()?.88:progress);
-        const d=pose.distance;camera.position.set(Math.sin(pose.azimuth)*d,Math.sin(pose.elevation)*d-.02,Math.cos(pose.azimuth)*Math.cos(pose.elevation)*d);camera.lookAt(0,-.022,0);
+        const d=pose.distance;camera.position.set(Math.sin(pose.azimuth)*d,Math.sin(pose.elevation)*d-.02,Math.cos(pose.azimuth)*Math.cos(pose.elevation)*d);camera.lookAt(0,-.022-(home?pose.oxygen*.036:0),0);
         model.children.find(o=>o.userData.cavities).material.userData.cut.value=pose.cut;
         const context=model.children.find(o=>o.userData.context),fade=home?pose.context:1-smooth(((paused()?.88:progress)-.47)/.23);
         context.visible=fade>.005;context.traverse(o=>{if(o.material)o.material.opacity=o.material.userData.baseOpacity*fade;});
         if(home){
           const cup=model.children.find(o=>o.userData.cavities);cup.material.userData.pores.value=pose.porosity*(1-pose.oxygen);
-          cup.material.emissive.setRGB(.02+pose.oxygen*.70,.34-pose.oxygen*.13,.42-pose.oxygen*.38);cup.material.emissiveIntensity=pose.coating*1.5;
-          cup.material.color.setRGB(.66-pose.coating*.28+pose.oxygen*.28,.78-pose.coating*.12,.83-pose.coating*.08-pose.oxygen*.22);
+          cup.material.emissive.set(0xc08138);cup.material.emissiveIntensity=pose.oxygen*.32;
+          cup.material.color.setRGB(.70+pose.oxygen*.18,.82-pose.oxygen*.05,.86-pose.oxygen*.25);
           model.children.find(o=>o.userData.exchange).visible=pose.flow>.01;
           const fluid=model.children.find(o=>o.userData.heroFlow);fluid.visible=pose.flow>.01;
           fluid.traverse(o=>{if(o.material?.userData.flowTime){o.material.userData.flowTime.value=time;o.material.opacity=.24*pose.flow;}});
-          const neighbours=model.children.find(o=>o.userData.heroNeighbours);neighbours.visible=pose.flow>.01;
-          neighbours.traverse(o=>{if(o.material)o.material.opacity=(o.userData.aggregate?.25:.16)*pose.flow;});
-          const rim=model.children.find(o=>o.userData.heroRim);rim.material.opacity=pose.coating*.65;rim.material.color.set(pose.oxygen>.5?0xffb357:0x8eeaf3);
-          const halo=model.children.find(o=>o.userData.heroHalo);halo.material.opacity=pose.coating*.5;halo.material.color.set(pose.oxygen>.5?0xffa331:0x38d3ed);
-          for(const [kind,point] of [['coating',[.039,-.020,-.0196]],['flow',[.0325,-.02875,-.0205]],['interaction',[-.056,-.029,-.022]]]){
+          const optics=model.children.find(o=>o.userData.heroOptics);optics.visible=pose.oxygen>.001;
+          optics.traverse(o=>{if(o.material)o.material.opacity=o.material.userData.baseOpacity*pose.oxygen;});
+          const halo=model.children.find(o=>o.userData.heroHalo);halo.material.opacity=pose.oxygen*.32;halo.material.color.set(0xffa331);
+          for(const [kind,point] of [['sensor',[.026,-.038,.006]],['flow',[.0325,-.02875,-.0205]],['interaction',[-.056,-.029,-.022]]]){
             const leader=home.querySelector(`.${kind}-leader`),label=home.querySelector(`.annotation-${kind}`);
             if(!leader||!label)continue;
             const bounds=stage.getBoundingClientRect(),visual=element.getBoundingClientRect(),text=label.getBoundingClientRect();
             const anchor=new THREE.Vector3(...point).project(camera);
             const x=visual.left-bounds.left+(anchor.x+1)*visual.width/2,y=visual.top-bounds.top+(1-anchor.y)*visual.height/2;
-            const sx=text.left-bounds.left+text.width*.65,sy=(kind==='flow'?text.bottom:text.top)-bounds.top;
+            const sx=text.left-bounds.left+text.width*.65,sy=(kind!=='interaction'?text.bottom:text.top)-bounds.top;
             leader.setAttribute('viewBox',`0 0 ${bounds.width} ${bounds.height}`);
-            leader.querySelector('path').setAttribute('d',`M ${sx} ${sy} L ${sx} ${sy+(kind==='flow'?18:-18)} L ${x} ${y}`);
+            leader.querySelector('path').setAttribute('d',`M ${sx} ${sy} L ${sx} ${sy+(kind!=='interaction'?18:-18)} L ${x} ${y}`);
             const dot=leader.querySelector('circle');dot.setAttribute('cx',x);dot.setAttribute('cy',y);
           }
-          home.style.setProperty('--coating',pose.coating*(1-pose.porosity));home.style.setProperty('--exchange',pose.flow);home.style.setProperty('--interaction',pose.interaction);home.style.setProperty('--oxygen',pose.oxygen);
+          home.style.setProperty('--exchange',pose.flow);home.style.setProperty('--interaction',pose.interaction);home.style.setProperty('--oxygen',pose.oxygen);
         }
       }else if(aggregate){
         camera.position.set(0,.15,3.55);camera.lookAt(0,0,0);model.rotation.set(.18,.4+time*.035,-.12);
@@ -365,6 +374,10 @@ export function mount(root=document){
           const phase=(i*.137+time*.075)%1,p=mediumPoint(i%10,phase);
           // Only the optical marker enlarges away from the membrane; it narrows at every pore.
           const scale=1+7*smooth((mediumWidth(p[0],i%10)-.000075)/.000825);m.makeScale(scale,scale,scale);m.setPosition(...p);o.setMatrixAt(i,m);
+        }o.instanceMatrix.needsUpdate=true;}
+        if(o.userData.heroExcitation){const m=new THREE.Matrix4();for(let i=0;i<o.count;i++){
+          const phase=(time*.42+i/o.count)%1,a=i*2.39996,r=(.005+(i%4)*.003)*(1+phase);
+          m.makeScale(.0003,.0015,.0003);m.setPosition(Math.cos(a)*r,-.103+phase*.058,Math.sin(a)*r);o.setMatrixAt(i,m);
         }o.instanceMatrix.needsUpdate=true;}
         if(o.userData.chipFlow){const m=new THREE.Matrix4();for(let i=0;i<o.count;i++){m.makeTranslation(((i*.27+time*.32)%3.2)-1.6,-.28,(i%3-1)*.6);o.setMatrixAt(i,m);}o.instanceMatrix.needsUpdate=true;}
         if(o.userData.opticalSignal){const m=new THREE.Matrix4();for(let i=0;i<o.count;i++){const p=(time*.5+i/12)%1;m.makeTranslation(i%2?.09:-.09,-.68+(i%2?1-p:p)*.49,0);o.setMatrixAt(i,m);}o.instanceMatrix.needsUpdate=true;}
