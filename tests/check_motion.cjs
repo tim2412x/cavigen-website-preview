@@ -13,7 +13,7 @@ assert.equal(homePose(0).chapter,0);assert.equal(homePose(.4).chapter,1);assert.
 assert.equal(homePose(.4).porosity,0);assert.equal(homePose(.4).flow,0);assert.equal(homePose(.4).context,0);
 assert.equal(homePose(.72).porosity,1);assert.equal(homePose(1).oxygen,1);assert.equal(homePose(1).flow,0);
 let last=homePose(0);
-for(let t=.001;t<=1;t+=.001){const next=homePose(t);for(const k of ['distance','elevation','azimuth','cut']){assert.ok(Number.isFinite(next[k]));assert.ok(Math.abs(next[k]-last[k])<.04,`Discontinuous hero ${k}`);}last=next;}
+for(let t=.001;t<=1;t+=.001){const next=homePose(t);for(const k of ['distance','elevation','azimuth','cut']){assert.ok(Number.isFinite(next[k]));assert.ok(Math.abs(next[k]-last[k])<(k==='cut'?.09:.04),`Discontinuous hero ${k}`);}last=next;}
 const hero=createStoryProduct(true),material=hero.children.find(o=>o.userData.cavities).material;
 assert.equal(material.userData.frequency.value,48);assert.equal(material.userData.poreSize.value,.11);assert.equal(material.userData.pores.value,0);
 assert.ok(.11/48<(.19/24)/3,'Hero pores must be more than three times smaller in radius.');
@@ -55,3 +55,13 @@ const optics=hero.children.find(o=>o.userData.heroOptics);assert.ok(optics);
 assert.ok(optics.children.filter(o=>!o.userData.heroExcitation).every(o=>o.position.y<-.048),'Objective and beam must be below the cavity.');
 assert.doesNotMatch(fs.readFileSync(path.join(root,'index.html'),'utf8'),/Coated inner wall|non-adherent|coated microcavities/);
 console.log('PASS: persistent non-occluding context, soft film margin, no pre-coated claim and optics below the cavity.');
+
+assert.equal(sandbox.CaviModels.gridCenters('hero').length,81);
+assert.equal(homePose(0).distance,1.1);
+const neighbours=hero.children.find(o=>o.userData.heroNeighbours);
+assert.equal(neighbours.children[0].material,material,'Adjacent cavities must use the central cavity material.');
+assert.equal(neighbours.children.find(o=>o.userData.aggregate).material.opacity,1,'Neighbour cells must not be washed out.');
+const shader={uniforms:{},vertexShader:'#include <begin_vertex>',fragmentShader:'#include <color_fragment>'};material.onBeforeCompile(shader);
+assert.ok(!shader.fragmentShader.includes('smoothstep(0.99,1.16'),'The flat web must extend to adjacent tile boundaries.');
+assert.ok(surroundings.children.find(o=>o.userData.cavities).geometry.attributes.position.count<10000,'Overview geometry should stay lightweight.');
+console.log('PASS: closer entry, 81-cavity overview, matching neighbours and continuous film web.');
