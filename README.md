@@ -4,13 +4,13 @@ Design preview of a proposed CAVIGEN website. This is a concept presentation, no
 
 The preview includes a guided product finder, animated illustrations of CaviSphere inserts and films, and a brand application study. Product geometry is approximated from photographs; the illustrations are not CAD models, microscopy or experimental results.
 
-## Product animation update · 11 November 2026
+## Product animation update · 16 November 2026
 
-The homepage opens with one continuous scroll journey: MicroSphere cavity field → non-adherent coating → PoroSphere fine pores and medium/nutrient exchange → SensoSphere oxygen-sensing invitation. MicroSphere remains labelled through the first two chapters. Glow is a visual explanation of a coating, not a statement of visible physical emission. The new hero pores have more than three times smaller illustrative radii than the earlier macro view.
+The homepage opens with one continuous scroll journey: MicroSphere cavity field → cell-culture close-up → PoroSphere fine pores and medium/nutrient exchange → SensoSphere oxygen-sensing invitation. MicroSphere remains labelled through the first two chapters. No pre-applied non-adherent coating is claimed. The new hero pores have more than three times smaller illustrative radii than the earlier macro view.
 
-PoroSphere porosity now opens earlier. A gently widening view reveals two neighbouring cultures, translucent moving medium streams and coloured nutrient markers. Streams enter and leave through actual pore centres; retained cells remain still. Camera-tracked labels explain the porous structure and cell-to-cell signalling. Flow geometry and particle colours are illustrative.
+PoroSphere porosity now opens earlier. A gently widening view reveals neighbouring cultures, translucent moving medium streams and coloured nutrient markers. Streams enter and leave through actual pore centres; retained cells remain still. Camera-tracked labels explain the porous structure and cell-to-cell signalling. Flow geometry and particle colours are illustrative.
 
-The logo and navigation stay visible throughout the journey. The lower bar offers MicroSphere, PoroSphere and SensoSphere directly. A sliding white selection follows the active product; culture and coating both stay under MicroSphere. A camera-tracked leader labels the coated inner wall and explains its non-adherent function.
+The logo and navigation stay visible throughout the journey. The lower bar offers MicroSphere, PoroSphere and SensoSphere directly. A sliding white selection follows the active product; culture and close-up both stay under MicroSphere. Surrounding cultures remain visible throughout. Transparent context surfaces do not write depth, preventing them from hiding the central cavity during the zoom. Soft shader edges replace the square margin. An illustrative objective below the SensoSphere cavity sends light upwards; a camera-tracked label points at the oxygen-sensitive wall.
 
 Normal page scrolling controls the camera; chapter buttons allow direct navigation. With motion paused, the same buttons switch explanatory still views. Without WebGL, all chapters remain readable with matching product stills. The SensoSphere invitation currently links to the existing oxygen application section; a separate SensoSphere page is deferred.
 

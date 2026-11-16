@@ -200,3 +200,11 @@
 @media(max-width:700px){.journey-ready .journey-controls{padding:6px;border-radius:30px}.journey-controls button{font-size:clamp(14px,4vw,18px);padding:13px 3px;min-height:46px}}
 .motion-paused .journey-controls nav::before{transition:none}
 @media(prefers-reduced-motion:reduce){.journey-controls nav::before{transition:none}}
+
+/* The optical label follows the sensing wall, while the objective remains below it. */
+.journey-ready .sensor-leader{opacity:var(--oxygen)}
+.sensor-leader path{stroke:#ffcf98}.sensor-leader circle{fill:#ffe7ca;stroke:#f4b76c}
+.journey-ready .annotation-sensor{left:auto;right:5%;top:24%;bottom:auto;max-width:310px;border-color:#ffcf98}
+.annotation-sensor strong{color:#ffdfb5}.annotation-sensor span{color:#efcfaa}
+.journey-ready .journey-visual{mask-image:radial-gradient(ellipse closest-side at 50% 50%,#000 50%,#0009 78%,transparent 100%);-webkit-mask-image:radial-gradient(ellipse closest-side at 50% 50%,#000 50%,#0009 78%,transparent 100%)}
+@media(max-width:700px){.journey-ready .annotation-sensor{top:43%;right:18px;bottom:auto;max-width:245px}.annotation-sensor strong{font-size:18px}.annotation-sensor span{font-size:14px}.journey-ready[data-chapter="3"] .journey-visual{top:40%;height:48%}.journey-ready[data-chapter="3"] .journey-finale h2{font-size:35px}.journey-ready .journey-visual{mask-image:radial-gradient(ellipse closest-side at 50% 50%,#000 55%,#000b 80%,transparent 100%);-webkit-mask-image:radial-gradient(ellipse closest-side at 50% 50%,#000 55%,#000b 80%,transparent 100%)}}
