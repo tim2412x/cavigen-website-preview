@@ -10,7 +10,7 @@ console.log('PASS: maximum 100 cells, rigid rotation and no old particle-field r
 
 const {homePose,createStoryProduct,exchangePoint}=sandbox.CaviModels;
 assert.equal(homePose(0).chapter,0);assert.equal(homePose(.4).chapter,1);assert.equal(homePose(.72).chapter,2);assert.equal(homePose(.96).chapter,3);
-assert.equal(homePose(.4).porosity,0);assert.equal(homePose(.4).flow,0);assert.equal(homePose(.4).coating,1);
+assert.equal(homePose(.4).porosity,0);assert.equal(homePose(.4).flow,0);assert.equal(homePose(.4).context,0);
 assert.equal(homePose(.72).porosity,1);assert.equal(homePose(1).oxygen,1);assert.equal(homePose(1).flow,0);
 let last=homePose(0);
 for(let t=.001;t<=1;t+=.001){const next=homePose(t);for(const k of ['distance','elevation','azimuth','cut']){assert.ok(Number.isFinite(next[k]));assert.ok(Math.abs(next[k]-last[k])<.04,`Discontinuous hero ${k}`);}last=next;}
@@ -24,7 +24,7 @@ for(let i=0;i<80;i++){
 }
 assert.ok(.000085<.048*.11/48,'Molecules must fit through the smaller hero pores.');
 assert.ok(hero.children.some(o=>o.userData.heroFlow));assert.ok(hero.children.some(o=>o.userData.heroHalo));
-console.log('PASS: hero chapter order, continuous zoom, coating before pores, small-pore crossings and oxygen finale.');
+console.log('PASS: hero chapter order, continuous zoom, culture before pores, small-pore crossings and oxygen finale.');
 const {mediumPoint,mediumWidth}=sandbox.CaviModels;
 assert.ok(homePose(.5).porosity>0,'Pores should open earlier in the PoroSphere chapter.');
 assert.equal(homePose(.55).porosity,1);assert.equal(homePose(.5).chapter,2);
@@ -46,3 +46,12 @@ for(let lane=0;lane<10;lane++)for(let t=0;t<=1;t+=.01){
  }
 }
 console.log('PASS: nutrient paths clear the retained cell aggregate.');
+
+const surroundings=hero.children.find(o=>o.userData.context);
+surroundings.traverse(o=>{if(o.material)assert.equal(o.material.depthWrite,false,'Faded context must not hide the central wall.');});
+assert.equal(material.depthWrite,false);assert.equal(material.userData.softEdge.value,1);
+for(let p=0;p<=1;p+=.01){assert.ok(hero.children.find(o=>o.userData.heroNeighbours).visible);assert.ok(homePose(p).cut>=.19);}
+const optics=hero.children.find(o=>o.userData.heroOptics);assert.ok(optics);
+assert.ok(optics.children.filter(o=>!o.userData.heroExcitation).every(o=>o.position.y<-.048),'Objective and beam must be below the cavity.');
+assert.doesNotMatch(fs.readFileSync(path.join(root,'index.html'),'utf8'),/Coated inner wall|non-adherent|coated microcavities/);
+console.log('PASS: persistent non-occluding context, soft film margin, no pre-coated claim and optics below the cavity.');
