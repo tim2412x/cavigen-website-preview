@@ -57,3 +57,8 @@ The enquiry form prepares an email draft. It does not send messages or store enq
 The CAVIGEN name, original logo and brand assets belong to their respective rights holders; this repository does not grant rights to reuse them. Raleway is covered by the included SIL Open Font License. Three.js is covered by the included MIT licence. The product illustrations were created for this concept.
 
 Original founder portraits and the labelled microscopy composite are sourced from cavigen.eu. The animated cell aggregates and measurement schematic are illustrations, not experimental data. No internal design planning documents or meeting notes are included.
+
+
+## About page · 18 November 2026
+
+A dedicated `about.html` contains the founders, awards, development funding and research network. All navigation links point to this page. Original logos and credits are documented in `assets/ABOUT_ASSETS.md`. New recognition includes startup innovativ 2026 and third place in Pioniergeist 2026.
