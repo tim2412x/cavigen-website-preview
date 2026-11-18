@@ -19,7 +19,7 @@ class Page(HTMLParser):
             if value: self.links.append(value)
 
 pages={f.name:Page(f) for f in ROOT.glob('*.html')}
-assert set(pages)=={'index.html','platform.html','applications.html','brand.html','finder.html'}
+assert set(pages)=={'index.html','platform.html','applications.html','brand.html','finder.html','about.html'}
 count=0
 for name,page in pages.items():
     assert page.headings==1, f'Expected one h1: {name}'
@@ -37,3 +37,13 @@ for value in re.findall(r"url\(['\"]?([^)'\"]+)", (ROOT/'style.css').read_text()
     assert (ROOT/value).is_file(), f'Missing CSS asset: {value}'
 assert all((ROOT/'assets'/f).is_file() for f in ('OFL-Raleway.txt',))
 print(f'PASS: {len(pages)} pages, {count} local references, images, anchors, heading structure and font files.')
+
+for name in pages:
+    source=(ROOT/name).read_text()
+    assert 'href="about.html"' in source, f'Missing About navigation: {name}'
+    assert 'index.html#about' not in source, f'Old About anchor: {name}'
+about=(ROOT/'about.html').read_text()
+assert 'ZEISS' not in about.upper()
+assert all(name in about for name in ('startup innovativ', 'Pioniergeist', '3rd place', 'GO-Bio initial', 'ZIM cooperation', '5-HT'))
+assert 'founder-grid' not in (ROOT/'index.html').read_text()
+print('PASS: dedicated About page, navigation, awards and founder relocation.')
